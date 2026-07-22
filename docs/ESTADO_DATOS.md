@@ -34,6 +34,16 @@ La descripción permite obtener talle y color. Para evitar interpretar el texto 
 
 ## Ventas
 
+Estructura recibida el 22 de julio de 2026:
+
+- `public.ventas_raw`: cabecera del comprobante, importes, tipo y número de comprobante, datos de sucursal y respuesta original en `raw_data` (`jsonb`);
+- `public.ventas_items`: líneas del comprobante con artículo, código, descripción, cantidad, precios, descuento, IVA, costo de reposición y sucursal;
+- `centum_sync.maestro_articulos`: maestro de artículos con `id_articulo` (`bigint`, obligatorio), `rubro`, `subrubro`, `updated_at`, `sku`, `descripcion` y `grupo_articulo`.
+
+El identificador del maestro es `bigint`, mientras que `public.ventas_items.id_articulo` es `integer`. PostgreSQL puede realizar la unión mediante una conversión segura a `bigint`, pero el modelo canónico deberá utilizar un mismo tipo para evitar inconsistencias futuras. Aunque `sku` fue confirmado funcionalmente como único, la columna admite valores nulos; la auditoría debe comprobar nulos y duplicados antes de agregar una restricción.
+
+La muestra recibida confirma que `grupo_articulo` representa el modelo base y que muchas descripciones siguen el patrón `C:<color> T:<talle>`. Se preparó una vista no destructiva para separar ambas variantes y marcar excepciones. La muestra también contiene textos como `NiÃ±o` y `PaÃ±o`; se debe ejecutar la auditoría para determinar si el problema de codificación existe en Supabase o fue introducido al copiar el resultado.
+
 Información disponible:
 
 - identificador interno de Supabase;
@@ -124,3 +134,10 @@ Las cargas de artículos, ventas, existencias y tránsito deberán registrar com
 5. Decidir si Supabase será la base central del MVP o si existirá una sincronización justificada con Neon.
 6. Ejecutar una carga histórica controlada después de resolver la idempotencia.
 7. Construir una vista consolidada por fecha, sociedad, sucursal y artículo.
+
+Scripts preparados:
+
+- `supabase/audits/001_auditoria_ventas.sql`: controles de cobertura, nulos, duplicados, relación cabecera-detalle, signos y conciliación de importes;
+- `supabase/views/000_maestro_articulos_normalizado.sql`: normalización no destructiva de color y talle con estado de parseo;
+- `supabase/views/001_ventas_diarias.sql`: vistas provisionales de ventas diarias y ventanas móviles de 7, 28 y 56 días.
+
