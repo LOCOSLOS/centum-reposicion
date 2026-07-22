@@ -161,6 +161,9 @@ Comparar pronósticos, ajustar seguridad y cobertura, modelar estacionalidad y e
 
 ## Estado
 
-Proyecto en etapa de definición funcional y descubrimiento de datos.
+Proyecto en etapa de construcción de la base de datos e integración. La ingesta diaria actual sigue operativa y se preparó una versión 2 paralela, todavía no instalada ni activada, para validar claves idempotentes, auditoría y cargas históricas.
 
-El detalle de las fuentes confirmadas, los flujos existentes y las validaciones pendientes se mantiene en [`docs/ESTADO_DATOS.md`](docs/ESTADO_DATOS.md).
+- Fuentes, resultados de auditoría y pendientes: [`docs/ESTADO_DATOS.md`](docs/ESTADO_DATOS.md).
+- Revisión del workflow vigente: [`docs/REVISION_WORKFLOW_VENTAS.md`](docs/REVISION_WORKFLOW_VENTAS.md).
+- Instalación y prueba controlada de la versión 2: [`docs/IMPLEMENTACION_V2_VENTAS.md`](docs/IMPLEMENTACION_V2_VENTAS.md).
+
