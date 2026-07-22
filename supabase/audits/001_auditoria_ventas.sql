@@ -311,23 +311,29 @@ group by i.id_articulo
 order by lineas_de_venta desc
 limit 200;
 
--- 17. Cobertura del patrón utilizado para separar color y talle.
+-- 17. Cobertura de marcadores opcionales de color y talle.
 select
   count(*) as articulos,
   count(*) filter (
-    where descripcion like '% C:% T:%'
-  ) as patron_completo,
+    where descripcion like '% C:%'
+      and descripcion like '% T:%'
+  ) as con_color_y_talle,
   count(*) filter (
-    where descripcion is null or btrim(descripcion) = ''
-  ) as sin_descripcion,
+    where descripcion like '% C:%'
+      and descripcion not like '% T:%'
+  ) as solo_color,
+  count(*) filter (
+    where descripcion not like '% C:%'
+      and descripcion like '% T:%'
+  ) as solo_talle,
   count(*) filter (
     where descripcion is not null
       and descripcion not like '% C:%'
-  ) as sin_marcador_color,
-  count(*) filter (
-    where descripcion is not null
       and descripcion not like '% T:%'
-  ) as sin_marcador_talle,
+  ) as sin_variantes_declaradas,
+  count(*) filter (
+    where descripcion is null or btrim(descripcion) = ''
+  ) as sin_descripcion,
   count(*) filter (
     where descripcion ~ '(Ã|Â|�)'
       or subrubro ~ '(Ã|Â|�)'
@@ -335,7 +341,7 @@ select
   ) as posible_codificacion_incorrecta
 from centum_sync.maestro_articulos;
 
--- 18. Muestra de descripciones que necesitan revisión manual.
+-- 18. Muestra de declaraciones parciales y posibles problemas de codificación.
 select
   id_articulo,
   sku,
@@ -345,16 +351,25 @@ select
   subrubro,
   case
     when descripcion is null or btrim(descripcion) = '' then 'sin_descripcion'
-    when descripcion not like '% C:%' then 'sin_color'
-    when descripcion not like '% T:%' then 'sin_talle'
     when descripcion ~ '(Ã|Â|�)'
       or subrubro ~ '(Ã|Â|�)'
       or grupo_articulo ~ '(Ã|Â|�)' then 'posible_codificacion_incorrecta'
-    else 'revisar'
+    when descripcion like '% C:%'
+      and descripcion not like '% T:%' then 'solo_color'
+    when descripcion not like '% C:%'
+      and descripcion like '% T:%' then 'solo_talle'
+    else 'sin_variantes_declaradas'
   end as motivo
 from centum_sync.maestro_articulos
 where descripcion is null
-  or descripcion not like '% C:% T:%'
+  or (
+    descripcion like '% C:%'
+    and descripcion not like '% T:%'
+  )
+  or (
+    descripcion not like '% C:%'
+    and descripcion like '% T:%'
+  )
   or descripcion ~ '(Ã|Â|�)'
   or subrubro ~ '(Ã|Â|�)'
   or grupo_articulo ~ '(Ã|Â|�)'
