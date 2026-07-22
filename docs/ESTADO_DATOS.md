@@ -82,10 +82,13 @@ Auditoría ejecutada el 22 de julio de 2026:
 - `NCV-A`: 5 comprobantes, 7 líneas y 7 unidades negativas;
 - 76.949 artículos en el maestro, sin SKU nulos ni duplicados;
 - cero líneas de venta sin correspondencia en el maestro;
-- 28.904 artículos con el patrón completo `C:<color> T:<talle>`;
+- 38.106 artículos con color y talle declarados;
+- 32.903 artículos con sólo talle declarado;
+- 5.868 artículos sin variantes declaradas;
+- 72 artículos con sólo color declarado;
 - cero textos con indicadores de codificación incorrecta en la base.
 
-La deformación observada como `NiÃ±o` y `PaÃ±o` se produjo al copiar o mostrar la muestra, no está presente en Supabase. La ausencia de marcadores de color o talle es válida para productos que no manejan esas variantes y no debe contabilizarse como un problema de calidad.
+La deformación observada como `NiÃ±o` y `PaÃ±o` se produjo al copiar o mostrar la muestra, no está presente en Supabase. La ausencia de marcadores de color o talle es válida para productos que no manejan esas variantes y no debe contabilizarse como un problema de calidad. Las cuatro categorías de variantes suman exactamente los 76.949 artículos del maestro.
 
 Las cantidades negativas se conservarán como devoluciones/notas de crédito. Las vistas deben exponer por separado unidades positivas, unidades devueltas en valor absoluto y unidades netas. No se deben eliminar ni invertir estos movimientos en la fuente.
 
