@@ -322,11 +322,11 @@ begin
       lineas_procesadas = resumen.lineas
   from (
     select
-      count(*) filter (where estado = 'procesado')::integer as lotes,
-      coalesce(sum(comprobantes), 0)::integer as comprobantes,
-      coalesce(sum(lineas), 0)::integer as lineas
-    from centum_sync.ventas_lotes_v2
-    where id_ejecucion = p_id_ejecucion
+      count(*) filter (where lote.estado = 'procesado')::integer as lotes,
+      coalesce(sum(lote.comprobantes), 0)::integer as comprobantes,
+      coalesce(sum(lote.lineas), 0)::integer as lineas
+    from centum_sync.ventas_lotes_v2 as lote
+    where lote.id_ejecucion = p_id_ejecucion
   ) resumen
   where ejecucion.id_ejecucion = p_id_ejecucion;
 
