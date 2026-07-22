@@ -162,3 +162,5 @@ Comparar pronósticos, ajustar seguridad y cobertura, modelar estacionalidad y e
 ## Estado
 
 Proyecto en etapa de definición funcional y descubrimiento de datos.
+
+El detalle de las fuentes confirmadas, los flujos existentes y las validaciones pendientes se mantiene en [`docs/ESTADO_DATOS.md`](docs/ESTADO_DATOS.md).
