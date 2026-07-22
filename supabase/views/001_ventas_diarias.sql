@@ -13,29 +13,26 @@ select
   max(i.sucursal_nombre) as sucursal_nombre,
   i.id_articulo,
   max(coalesce(m.sku, i.codigo)) as sku,
-  max(coalesce(m.descripcion, i.nombre)) as articulo_nombre,
+  max(coalesce(m.descripcion_original, i.nombre)) as articulo_nombre,
   max(m.rubro) as rubro,
   max(m.subrubro) as subrubro,
   max(m.grupo_articulo) as grupo_articulo,
   max(m.color) as color,
   max(m.talle) as talle,
-  max(m.estado_parseo_variante) as estado_parseo_variante,
+  max(m.estado_parseo_variante) as estado_variante,
   count(*) as lineas,
   count(distinct i.id_venta) as comprobantes,
   coalesce(
     sum(coalesce(i.cantidad, 0)) filter (where i.cantidad > 0),
     0
-  ) as unidades_positivas,
+  ) as unidades_vendidas,
   coalesce(
     abs(sum(coalesce(i.cantidad, 0)) filter (where i.cantidad < 0)),
     0
-  ) as unidades_negativas,
+  ) as unidades_devueltas,
   sum(coalesce(i.cantidad, 0)) as unidades_netas,
   sum(coalesce(i.subtotal, 0)) as subtotal_registrado,
   sum(coalesce(i.total, 0)) as total_registrado,
-  sum(
-    coalesce(i.costo_reposicion, 0) * coalesce(i.cantidad, 0)
-  ) as costo_reposicion_total,
   min(i.actualizado_en) as primera_actualizacion,
   max(i.actualizado_en) as ultima_actualizacion
 from public.ventas_items i
@@ -52,7 +49,7 @@ group by
   i.id_articulo;
 
 comment on view public.vw_ventas_diarias_articulo_sucursal is
-  'Ventas consolidadas por fecha, sociedad, sucursal y artículo. Provisional hasta validar duplicados, devoluciones y anulaciones.';
+  'Ventas consolidadas por fecha, sociedad, sucursal y artículo. Separa ventas y notas de crédito; excluye líneas sin sucursal recuperable.';
 
 create or replace view public.vw_ventas_resumen_articulo_sucursal
 with (security_invoker = true)
@@ -69,7 +66,16 @@ select
   max(grupo_articulo) as grupo_articulo,
   max(color) as color,
   max(talle) as talle,
-  max(estado_parseo_variante) as estado_parseo_variante,
+  max(estado_variante) as estado_variante,
+  coalesce(sum(unidades_vendidas) filter (
+    where fecha_comprobante >= current_date - 6
+  ), 0) as unidades_vendidas_7d,
+  coalesce(sum(unidades_vendidas) filter (
+    where fecha_comprobante >= current_date - 27
+  ), 0) as unidades_vendidas_28d,
+  coalesce(sum(unidades_devueltas) filter (
+    where fecha_comprobante >= current_date - 27
+  ), 0) as unidades_devueltas_28d,
   coalesce(sum(unidades_netas) filter (
     where fecha_comprobante >= current_date - 6
   ), 0) as unidades_netas_7d,
@@ -84,10 +90,10 @@ select
   ), 0) as venta_total_28d,
   count(distinct fecha_comprobante) filter (
     where fecha_comprobante >= current_date - 27
-      and unidades_positivas > 0
+      and unidades_vendidas > 0
   ) as dias_con_venta_28d,
   max(fecha_comprobante) filter (
-    where unidades_positivas > 0
+    where unidades_vendidas > 0
   ) as fecha_ultima_venta,
   max(ultima_actualizacion) as ultima_actualizacion
 from public.vw_ventas_diarias_articulo_sucursal
