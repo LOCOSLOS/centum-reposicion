@@ -56,6 +56,45 @@ La cantidad final también deberá respetar:
 
 Los modelos estadísticos o de aprendizaje automático se incorporarán después de disponer de una línea base medible.
 
+## Evolución futura del forecasting
+
+Una vez validada la calidad de los datos y medida la línea base, se evaluarán modelos de aprendizaje automático para mejorar la proyección de demanda. La incorporación será gradual y cada alternativa deberá compararse contra la regla inicial con datos históricos reales.
+
+### Modelos candidatos
+
+1. **XGBoost — candidato principal**
+   - Suele ofrecer alta precisión con datos tabulares de ventas e inventario.
+   - Permite incorporar estacionalidad, promociones, precios, disponibilidad y atributos de producto como variables.
+   - Es una alternativa ampliamente utilizada en forecasting de retail y competencias de ciencia de datos.
+
+2. **LightGBM — candidato para mayor volumen**
+   - Tiene un enfoque similar a XGBoost y está optimizado para entrenamiento rápido y uso eficiente de memoria.
+   - Resulta especialmente relevante para el volumen esperado de combinaciones SKU-ubicación.
+   - Deberá compararse con XGBoost en precisión, tiempo de entrenamiento y costo operativo.
+
+3. **Random Forest — línea base de machine learning**
+   - Es robusto, relativamente simple de implementar y útil como primera referencia.
+   - Facilita validar si modelos más complejos realmente aportan una mejora material.
+   - Puede servir para pruebas iniciales y análisis de importancia de variables.
+
+4. **Microsoft Azure Machine Learning / AutoML — opción administrada**
+   - Se evaluará como alternativa para automatizar entrenamiento, despliegue y monitoreo de modelos.
+   - Su adopción dependerá del costo total frente a una implementación propia en Python, del volumen procesado y de la facilidad de integración con la arquitectura del proyecto.
+   - No será una dependencia obligatoria: el sistema deberá poder funcionar con modelos ejecutados en infraestructura propia.
+
+### Criterios de evaluación
+
+Los modelos se probarán mediante validación temporal, evitando mezclar información futura en el entrenamiento. La selección no dependerá sólo de la precisión, sino también de:
+
+- error de pronóstico por SKU, local, categoría y horizonte;
+- impacto simulado en quiebres de stock y sobrestock;
+- tiempo y costo de entrenamiento e inferencia;
+- capacidad de explicar y auditar las recomendaciones;
+- mantenimiento, monitoreo y frecuencia de reentrenamiento;
+- comportamiento ante productos nuevos, ventas intermitentes y períodos sin stock.
+
+La arquitectura separará la interfaz de pronóstico de cada implementación. Así, el motor de reposición podrá consumir una salida estándar y cambiar entre la línea base, XGBoost, LightGBM, Random Forest o un proveedor administrado sin modificar las reglas de inventario ni el flujo de aprobación.
+
 ## Flujo operativo propuesto
 
 ```text
