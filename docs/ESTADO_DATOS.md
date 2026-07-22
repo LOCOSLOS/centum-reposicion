@@ -17,7 +17,7 @@ Este documento registra únicamente hechos confirmados, decisiones de trabajo y 
 
 Información disponible:
 
-- `idarticulo`;
+- `id_articulo`;
 - rubro;
 - subrubro;
 - `sku`;
@@ -26,7 +26,7 @@ Información disponible:
 
 Validaciones confirmadas:
 
-- `idarticulo` es estable y único;
+- `id_articulo` es estable y único;
 - `sku` es único;
 - todas las ventas encuentran su artículo correspondiente en el maestro.
 
@@ -47,8 +47,8 @@ La muestra recibida confirma que `grupo_articulo` representa el modelo base y qu
 Información disponible:
 
 - identificador interno de Supabase;
-- `idventa`;
-- `idarticulo`;
+- `id_venta`;
+- `id_articulo`;
 - período;
 - sociedad;
 - fecha del comprobante;
@@ -58,19 +58,36 @@ Información disponible:
 - precio final;
 - precio neto;
 - costo de reposición;
-- `idsucursal`;
+- `id_sucursal`;
 - nombre de la sucursal.
 
 Validaciones confirmadas:
 
-- `idventa` identifica el comprobante completo;
-- un comprobante contiene varias líneas y, por lo tanto, varias filas pueden compartir el mismo `idventa`;
-- el histórico actualmente almacenado comienza el 26 de mayo de 2026;
+- `id_venta` identifica el comprobante completo;
+- un comprobante contiene varias líneas y, por lo tanto, varias filas pueden compartir el mismo `id_venta`;
+- el histórico actualmente almacenado comienza el 25 de mayo de 2026;
 - Centum permite cargar períodos anteriores mediante ejecuciones adicionales.
+
+### Resultado de la auditoría inicial
+
+Auditoría ejecutada el 22 de julio de 2026:
+
+- 20.513 comprobantes y 43.364 líneas de venta;
+- cobertura desde el 25 de mayo hasta el 21 de julio de 2026;
+- cero comprobantes duplicados;
+- cero repeticiones de `id_venta + id_articulo` dentro de la sociedad y sucursal;
+- cero líneas con cantidad igual a cero;
+- 2.550 líneas con cantidad negativa, pendientes de clasificar por tipo de comprobante;
+- 76.949 artículos en el maestro, sin SKU nulos ni duplicados;
+- cero líneas de venta sin correspondencia en el maestro;
+- 28.904 artículos con el patrón completo `C:<color> T:<talle>`;
+- cero textos con indicadores de codificación incorrecta en la base.
+
+La deformación observada como `NiÃ±o` y `PaÃ±o` se produjo al copiar o mostrar la muestra, no está presente en Supabase. La extracción de color y talle debe admitir artículos sin el patrón de variantes, ya que éste no cubre todo el maestro.
 
 Validaciones pendientes:
 
-- determinar si puede repetirse `idventa + idarticulo` legítimamente;
+- vigilar si `id_venta + id_articulo` comienza a repetirse al ampliar el histórico;
 - localizar un identificador estable de línea o definir una clave reproducible;
 - comprobar cómo se representan devoluciones y anulaciones;
 - detectar duplicados generados por reejecuciones;
