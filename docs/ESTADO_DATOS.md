@@ -161,6 +161,8 @@ Las cargas de artículos, ventas, existencias y tránsito deberán registrar com
 6. Ejecutar una carga histórica controlada después de resolver la idempotencia.
 7. Construir una vista consolidada por fecha, sociedad, sucursal y artículo.
 
+La revisión técnica del flujo diario se encuentra en [`REVISION_WORKFLOW_VENTAS.md`](REVISION_WORKFLOW_VENTAS.md).
+
 Scripts preparados:
 
 - `supabase/audits/001_auditoria_ventas.sql`: controles de cobertura, nulos, duplicados, relación cabecera-detalle, signos y conciliación de importes;
