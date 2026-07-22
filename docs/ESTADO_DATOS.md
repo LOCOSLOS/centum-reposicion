@@ -163,10 +163,13 @@ Las cargas de artículos, ventas, existencias y tránsito deberán registrar com
 
 La revisión técnica del flujo diario se encuentra en [`REVISION_WORKFLOW_VENTAS.md`](REVISION_WORKFLOW_VENTAS.md).
 
+La versión paralela propuesta y sus pasos de instalación están documentados en [`IMPLEMENTACION_V2_VENTAS.md`](IMPLEMENTACION_V2_VENTAS.md). Todavía no fue ejecutada ni activada.
+
 Scripts preparados:
 
 - `supabase/audits/001_auditoria_ventas.sql`: controles de cobertura, nulos, duplicados, relación cabecera-detalle, signos y conciliación de importes;
 - `supabase/views/000_maestro_articulos_normalizado.sql`: normalización no destructiva de color y talle con estado de parseo;
 - `supabase/views/001_ventas_diarias.sql`: vistas provisionales de ventas diarias y ventanas móviles de 7, 28 y 56 días.
 - `supabase/views/002_calidad_ventas.sql`: resumen separado de ventas históricas sin sucursal recuperable.
+- `supabase/migrations/001_ventas_v2_paralela.sql`: tablas paralelas, auditoría por ejecución e ingesta por lote para la versión 2.
 
