@@ -1,0 +1,259 @@
+{
+  "name": "Centum → Supabase: Sync Ventas Diario v2 (PARALELO)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 2 * * *"
+            }
+          ]
+        }
+      },
+      "id": "3b21ce5e-48cc-4eac-a4e5-85140329a101",
+      "name": "Diario 2am ART",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "const fecha = $today.minus({ days: 1 }).toFormat('yyyy-MM-dd');\n\nreturn [{\n  json: {\n    idEjecucion: String($execution.id),\n    fechaDesde: fecha,\n    fechaHasta: fecha,\n    lotesEsperados: 26\n  }\n}];"
+      },
+      "id": "ff717cea-2104-4d65-91aa-b0b3aa44e102",
+      "name": "Inicializa Ejecucion",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [220, 0]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO centum_sync.carga_ejecuciones_v2 (id_ejecucion, workflow, modo, fecha_desde, fecha_hasta, estado, lotes_esperados, iniciada_en, finalizada_en, mensaje_error)\nVALUES (\n  '{{ $json.idEjecucion }}',\n  'Centum Sync Ventas Diario v2',\n  'diario',\n  '{{ $json.fechaDesde }}'::date,\n  '{{ $json.fechaHasta }}'::date,\n  'iniciada',\n  {{ $json.lotesEsperados }},\n  now(),\n  NULL,\n  NULL\n)\nON CONFLICT (id_ejecucion) DO UPDATE SET\n  estado = 'iniciada',\n  finalizada_en = NULL,\n  mensaje_error = NULL\nRETURNING id_ejecucion;",
+        "options": {}
+      },
+      "id": "66d46015-0bf2-4263-b707-62e93c41e103",
+      "name": "Registra Ejecucion",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [440, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "const ejecucion = $('Inicializa Ejecucion').first().json;\nconst ID_COMPARTIDA = 2;\n\nconst sucursales = [\n  { idSucursal: 6455, sucursalNombre: '01',                       idDivisionPropia: 1 },\n  { idSucursal: 6457, sucursalNombre: '02 - Local de Rivadavia', idDivisionPropia: 3 },\n  { idSucursal: 6084, sucursalNombre: '05 - Local de Monroe',    idDivisionPropia: 1 },\n  { idSucursal: 6761, sucursalNombre: '11 - Local de Gallardo',  idDivisionPropia: 3 },\n  { idSucursal: 6458, sucursalNombre: '16 - Local de Salguero',  idDivisionPropia: 1 },\n  { idSucursal: 8774, sucursalNombre: '17 - Local de Boedo',     idDivisionPropia: 1 },\n  { idSucursal: 9254, sucursalNombre: '18 - E-Commerce',         idDivisionPropia: 6 },\n  { idSucursal: 9258, sucursalNombre: '20 - Local Membrillar',   idDivisionPropia: 3 },\n  { idSucursal: 9261, sucursalNombre: '21 - Mayorista',          idDivisionPropia: 1 },\n  { idSucursal: 9281, sucursalNombre: '23 - Local Plaza Italia', idDivisionPropia: 1 },\n  { idSucursal: 9292, sucursalNombre: '24 - Local Doblas',       idDivisionPropia: 3 },\n  { idSucursal: 9302, sucursalNombre: '25 - Local Beltran',      idDivisionPropia: 1 },\n  { idSucursal: 9308, sucursalNombre: '26 - Local Parral',       idDivisionPropia: 1 }\n];\n\nconst consultas = [];\nfor (const sucursal of sucursales) {\n  for (const idDivision of [ID_COMPARTIDA, sucursal.idDivisionPropia]) {\n    consultas.push({\n      json: {\n        idEjecucion: ejecucion.idEjecucion,\n        fechaDesde: ejecucion.fechaDesde,\n        fechaHasta: ejecucion.fechaHasta,\n        idSucursal: sucursal.idSucursal,\n        sucursalNombre: sucursal.sucursalNombre,\n        idDivision\n      }\n    });\n  }\n}\n\nreturn consultas;"
+      },
+      "id": "9941463e-2df7-4b61-9837-66f65b98e104",
+      "name": "Genera Consultas",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [660, 0]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "54e011a0-af11-40c3-ab28-d79bf447e105",
+      "name": "Loop Over Items",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [880, 0]
+    },
+    {
+      "parameters": {
+        "resource": "generarTokenSeguridad"
+      },
+      "id": "2f27946c-046a-4f6d-9a18-d0276461e106",
+      "name": "TOKEN",
+      "type": "n8n-nodes-centum.centum",
+      "typeVersion": 1,
+      "position": [1100, 100]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "ctx001",
+              "name": "CentumSuiteAccessToken",
+              "value": "={{ $json }}",
+              "type": "string"
+            },
+            {
+              "id": "ctx002",
+              "name": "idEjecucion",
+              "value": "={{ $('Loop Over Items').item.json.idEjecucion }}",
+              "type": "string"
+            },
+            {
+              "id": "ctx003",
+              "name": "fechaDesde",
+              "value": "={{ $('Loop Over Items').item.json.fechaDesde }}",
+              "type": "string"
+            },
+            {
+              "id": "ctx004",
+              "name": "fechaHasta",
+              "value": "={{ $('Loop Over Items').item.json.fechaHasta }}",
+              "type": "string"
+            },
+            {
+              "id": "ctx005",
+              "name": "idSucursal",
+              "value": "={{ $('Loop Over Items').item.json.idSucursal }}",
+              "type": "number"
+            },
+            {
+              "id": "ctx006",
+              "name": "sucursalNombre",
+              "value": "={{ $('Loop Over Items').item.json.sucursalNombre }}",
+              "type": "string"
+            },
+            {
+              "id": "ctx007",
+              "name": "idDivision",
+              "value": "={{ $('Loop Over Items').item.json.idDivision }}",
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "d67522e1-9f62-4e20-aa37-922689f7e107",
+      "name": "Normaliza Contexto",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1320, 100]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://plataforma5.centum.com.ar:23990/BL6/Ventas/FiltrosVentaConsulta/",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/json"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "CentumSuiteConsumidorApiPublicaId",
+              "value": "7"
+            },
+            {
+              "name": "CentumSuiteAccessToken",
+              "value": "={{ $json.CentumSuiteAccessToken }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ FechaDocumentoDesde: $json.fechaDesde, FechaDocumentoHasta: $json.fechaHasta, IdSucursal: $json.idSucursal, IdDivisionEmpresaGrupoEconomico: $json.idDivision }) }}",
+        "options": {
+          "lowercaseHeaders": false,
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "32d4db9f-61dd-4b50-923c-bebde657e108",
+      "name": "Obtiene Ventas",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [1540, 100]
+    },
+    {
+      "parameters": {
+        "jsCode": "const divisionMap = {\n  1: 'Endron Empresa',\n  2: 'Endron Prueba',\n  3: 'Nich Empresa',\n  6: 'Capay'\n};\n\nfunction sqlTexto(valor) {\n  if (valor === null || valor === undefined) return 'NULL';\n  return \"'\" + String(valor).replace(/'/g, \"''\") + \"'\";\n}\n\nfunction sqlJson(valor) {\n  return \"'\" + JSON.stringify(valor).replace(/'/g, \"''\") + \"'::jsonb\";\n}\n\nconst contexto = $('Normaliza Contexto').item.json;\nconst respuesta = $input.item.json.body ?? {};\nconst sociedad = divisionMap[contexto.idDivision] || `Division ${contexto.idDivision}`;\n\nconst query = `select * from centum_sync.ingestar_lote_ventas_v2(\n  ${sqlTexto(contexto.idEjecucion)},\n  ${Number(contexto.idDivision)},\n  ${sqlTexto(sociedad)},\n  ${Number(contexto.idSucursal)},\n  ${sqlTexto(contexto.sucursalNombre)},\n  ${sqlTexto(contexto.fechaDesde)}::date,\n  ${sqlTexto(contexto.fechaHasta)}::date,\n  ${sqlJson(respuesta)}\n);`;\n\nreturn [{ json: { query } }];"
+      },
+      "id": "99ac1982-2700-4236-a6f0-a295cd9fe109",
+      "name": "Prepara Ingesta",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1760, 100]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "{{ $json.query }}",
+        "options": {}
+      },
+      "id": "1597c400-fc89-4a46-8f25-46770a9ae110",
+      "name": "Ingiere Lote v2",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1980, 100]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE centum_sync.carga_ejecuciones_v2\nSET estado = CASE\n      WHEN lotes_procesados = lotes_esperados THEN 'completada'\n      ELSE 'con_error'\n    END,\n    finalizada_en = now(),\n    mensaje_error = CASE\n      WHEN lotes_procesados = lotes_esperados THEN NULL\n      ELSE concat('Se esperaban ', lotes_esperados, ' lotes y se procesaron ', lotes_procesados)\n    END\nWHERE id_ejecucion = '{{ $('Inicializa Ejecucion').first().json.idEjecucion }}'\nRETURNING *;",
+        "options": {}
+      },
+      "id": "4d9411a8-cc34-4fa9-a295-f7903570e111",
+      "name": "Finaliza Ejecucion",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1100, -120]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Diario 2am ART": {
+      "main": [[{"node": "Inicializa Ejecucion", "type": "main", "index": 0}]]
+    },
+    "Inicializa Ejecucion": {
+      "main": [[{"node": "Registra Ejecucion", "type": "main", "index": 0}]]
+    },
+    "Registra Ejecucion": {
+      "main": [[{"node": "Genera Consultas", "type": "main", "index": 0}]]
+    },
+    "Genera Consultas": {
+      "main": [[{"node": "Loop Over Items", "type": "main", "index": 0}]]
+    },
+    "Loop Over Items": {
+      "main": [
+        [{"node": "Finaliza Ejecucion", "type": "main", "index": 0}],
+        [{"node": "TOKEN", "type": "main", "index": 0}]
+      ]
+    },
+    "TOKEN": {
+      "main": [[{"node": "Normaliza Contexto", "type": "main", "index": 0}]]
+    },
+    "Normaliza Contexto": {
+      "main": [[{"node": "Obtiene Ventas", "type": "main", "index": 0}]]
+    },
+    "Obtiene Ventas": {
+      "main": [[{"node": "Prepara Ingesta", "type": "main", "index": 0}]]
+    },
+    "Prepara Ingesta": {
+      "main": [[{"node": "Ingiere Lote v2", "type": "main", "index": 0}]]
+    },
+    "Ingiere Lote v2": {
+      "main": [[{"node": "Loop Over Items", "type": "main", "index": 0}]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timeSavedMode": "fixed",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false,
+    "timezone": "America/Argentina/Buenos_Aires"
+  },
+  "versionId": "113f8510-e4fa-4fa0-b785-e09fc3fc750b",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}
+
