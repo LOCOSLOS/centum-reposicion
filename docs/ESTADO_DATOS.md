@@ -92,18 +92,20 @@ La deformación observada como `NiÃ±o` y `PaÃ±o` se produjo al copiar o most
 
 Las cantidades negativas se conservarán como devoluciones/notas de crédito. Las vistas deben exponer por separado unidades positivas, unidades devueltas en valor absoluto y unidades netas. No se deben eliminar ni invertir estos movimientos en la fuente.
 
-La primera carga contiene 1.199 líneas del 25 y 26 de mayo de 2026 sin `id_sucursal`, equivalentes a 1.137 unidades vendidas y 70 devueltas. La sucursal tampoco puede recuperarse desde `ventas_raw`. Estas líneas se conservarán para auditoría y totales generales, pero se excluirán de cualquier cálculo por local. El análisis confiable por sucursal comienza el 27 de mayo de 2026 y contiene 42.165 líneas, consolidadas en 40.629 filas diarias por artículo y sucursal.
+La primera carga contiene 1.199 líneas del 25 y 26 de mayo de 2026 sin `id_sucursal`, equivalentes a 1.137 unidades vendidas y 70 devueltas. La sucursal tampoco puede recuperarse desde `ventas_raw`. Estas líneas se conservarán para auditoría y totales generales, pero se excluirán de cualquier cálculo por local. El análisis confiable por sucursal comienza el 27 de mayo de 2026 y contiene 42.165 filas almacenadas, consolidadas en 40.629 filas diarias por artículo y sucursal.
+
+La validación de la ingesta v2 demostró que la tabla anterior no conserva todas las líneas originales. Para el 17 de julio de 2026, Centum devolvió 792 líneas y `public.ventas_items` conservó 778. Las 14 líneas faltantes corresponden a artículos que aparecen dos veces dentro del mismo comprobante: 13 unidades vendidas y una unidad devuelta. La clave anterior `id_venta + id_articulo` sobrescribía una aparición; la v2 preserva ambas mediante `linea_ordinal`. Por lo tanto, los conteos históricos de `public.ventas_items` deben considerarse potencialmente subestimados hasta completar el backfill desde Centum.
 
 Validaciones pendientes:
 
-- vigilar si `id_venta + id_articulo` comienza a repetirse al ampliar el histórico;
-- localizar un identificador estable de línea o definir una clave reproducible;
+- medir la pérdida histórica causada por repeticiones de `id_venta + id_articulo` mediante el backfill v2;
+- confirmar si Centum expone un identificador estable de línea; mientras tanto se utiliza el ordinal original y se conserva `raw_item`;
 - confirmar si existen anulaciones con un tratamiento diferente a las notas de crédito;
 - detectar duplicados generados por reejecuciones;
 - verificar períodos incompletos por sociedad y sucursal;
 - definir el alcance del backfill histórico. Como referencia inicial se consideran 12 meses como mínimo y 24 meses como período preferible para indumentaria.
 
-No se debe ejecutar el backfill completo hasta definir una clave idempotente para cada línea de venta.
+La v2 ya dispone de una clave idempotente provisional por división, sucursal, venta y ordinal. El backfill debe realizarse de manera controlada, por ventanas acotadas y con conciliación, antes de considerar a la v2 como fuente canónica.
 
 ## Existencias
 
@@ -153,21 +155,22 @@ Las cargas de artículos, ventas, existencias y tránsito deberán registrar com
 
 ## Próximos pasos
 
-1. Revisar nombres, columnas, tipos y muestras anonimizadas de las tablas actuales de artículos y ventas.
-2. Auditar unicidad de las líneas, duplicados, devoluciones, anulaciones y cobertura temporal de ventas.
-3. Revisar el workflow de existencias y definir su persistencia en Supabase.
-4. Revisar el CSV de tránsito y definir su clave e importación idempotente.
-5. Decidir si Supabase será la base central del MVP o si existirá una sincronización justificada con Neon.
-6. Ejecutar una carga histórica controlada después de resolver la idempotencia.
-7. Construir una vista consolidada por fecha, sociedad, sucursal y artículo.
+1. Restaurar y verificar la configuración diaria del workflow v2, manteniéndolo inactivo.
+2. Identificar consumidores de `public.ventas_raw` y `public.ventas_items` y adaptar las vistas a la fuente v2.
+3. Ejecutar un backfill controlado por ventanas y reconciliar varios días antes del corte.
+4. Desactivar el workflow anterior y activar la v2 sin superponer sus horarios.
+5. Revisar el workflow de existencias y definir su persistencia en Supabase.
+6. Revisar el CSV de tránsito y definir su clave e importación idempotente.
+7. Decidir si Supabase será la base central del MVP o si existirá una sincronización justificada con Neon.
 
 La revisión técnica del flujo diario se encuentra en [`REVISION_WORKFLOW_VENTAS.md`](REVISION_WORKFLOW_VENTAS.md).
 
-La versión paralela propuesta y sus pasos de instalación están documentados en [`IMPLEMENTACION_V2_VENTAS.md`](IMPLEMENTACION_V2_VENTAS.md). Todavía no fue ejecutada ni activada.
+La versión paralela y sus pasos de instalación están documentados en [`IMPLEMENTACION_V2_VENTAS.md`](IMPLEMENTACION_V2_VENTAS.md). Fue instalada y validada manualmente, pero permanece inactiva. Los resultados se encuentran en [`VALIDACION_INGESTA_V2_2026-07-22.md`](VALIDACION_INGESTA_V2_2026-07-22.md).
 
 Scripts preparados:
 
 - `supabase/audits/001_auditoria_ventas.sql`: controles de cobertura, nulos, duplicados, relación cabecera-detalle, signos y conciliación de importes;
+- `supabase/audits/002_validacion_ventas_v2.sql`: comparación de v1/v2, detección de líneas repetidas legítimas y control de ejecuciones incompletas;
 - `supabase/views/000_maestro_articulos_normalizado.sql`: normalización no destructiva de color y talle con estado de parseo;
 - `supabase/views/001_ventas_diarias.sql`: vistas provisionales de ventas diarias y ventanas móviles de 7, 28 y 56 días.
 - `supabase/views/002_calidad_ventas.sql`: resumen separado de ventas históricas sin sucursal recuperable.
