@@ -77,7 +77,9 @@ Auditoría ejecutada el 22 de julio de 2026:
 - cero comprobantes duplicados;
 - cero repeticiones de `id_venta + id_articulo` dentro de la sociedad y sucursal;
 - cero líneas con cantidad igual a cero;
-- 2.550 líneas con cantidad negativa, pendientes de clasificar por tipo de comprobante;
+- 2.550 líneas con cantidad negativa, todas correspondientes a notas de crédito de venta;
+- `NCV-B`: 1.991 comprobantes, 2.543 líneas y 2.560 unidades negativas;
+- `NCV-A`: 5 comprobantes, 7 líneas y 7 unidades negativas;
 - 76.949 artículos en el maestro, sin SKU nulos ni duplicados;
 - cero líneas de venta sin correspondencia en el maestro;
 - 28.904 artículos con el patrón completo `C:<color> T:<talle>`;
@@ -85,11 +87,13 @@ Auditoría ejecutada el 22 de julio de 2026:
 
 La deformación observada como `NiÃ±o` y `PaÃ±o` se produjo al copiar o mostrar la muestra, no está presente en Supabase. La extracción de color y talle debe admitir artículos sin el patrón de variantes, ya que éste no cubre todo el maestro.
 
+Las cantidades negativas se conservarán como devoluciones/notas de crédito. Las vistas deben exponer por separado unidades positivas, unidades devueltas en valor absoluto y unidades netas. No se deben eliminar ni invertir estos movimientos en la fuente.
+
 Validaciones pendientes:
 
 - vigilar si `id_venta + id_articulo` comienza a repetirse al ampliar el histórico;
 - localizar un identificador estable de línea o definir una clave reproducible;
-- comprobar cómo se representan devoluciones y anulaciones;
+- confirmar si existen anulaciones con un tratamiento diferente a las notas de crédito;
 - detectar duplicados generados por reejecuciones;
 - verificar períodos incompletos por sociedad y sucursal;
 - definir el alcance del backfill histórico. Como referencia inicial se consideran 12 meses como mínimo y 24 meses como período preferible para indumentaria.
