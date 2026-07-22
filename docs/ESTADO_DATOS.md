@@ -92,6 +92,8 @@ La deformación observada como `NiÃ±o` y `PaÃ±o` se produjo al copiar o most
 
 Las cantidades negativas se conservarán como devoluciones/notas de crédito. Las vistas deben exponer por separado unidades positivas, unidades devueltas en valor absoluto y unidades netas. No se deben eliminar ni invertir estos movimientos en la fuente.
 
+La primera carga contiene 1.199 líneas del 25 y 26 de mayo de 2026 sin `id_sucursal`, equivalentes a 1.137 unidades vendidas y 70 devueltas. La sucursal tampoco puede recuperarse desde `ventas_raw`. Estas líneas se conservarán para auditoría y totales generales, pero se excluirán de cualquier cálculo por local. El análisis confiable por sucursal comienza el 27 de mayo de 2026 y contiene 42.165 líneas, consolidadas en 40.629 filas diarias por artículo y sucursal.
+
 Validaciones pendientes:
 
 - vigilar si `id_venta + id_articulo` comienza a repetirse al ampliar el histórico;
@@ -164,4 +166,5 @@ Scripts preparados:
 - `supabase/audits/001_auditoria_ventas.sql`: controles de cobertura, nulos, duplicados, relación cabecera-detalle, signos y conciliación de importes;
 - `supabase/views/000_maestro_articulos_normalizado.sql`: normalización no destructiva de color y talle con estado de parseo;
 - `supabase/views/001_ventas_diarias.sql`: vistas provisionales de ventas diarias y ventanas móviles de 7, 28 y 56 días.
+- `supabase/views/002_calidad_ventas.sql`: resumen separado de ventas históricas sin sucursal recuperable.
 
