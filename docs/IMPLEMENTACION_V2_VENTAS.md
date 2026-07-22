@@ -2,7 +2,7 @@
 
 Última actualización: 22 de julio de 2026.
 
-Esta versión permite validar una ingesta más robusta sin modificar ni detener el workflow diario actual. La preparación del repositorio no ejecuta cambios en Supabase ni en n8n.
+Esta versión permite validar una ingesta más robusta sin modificar ni detener el workflow diario actual. La migración fue instalada y la v2 fue probada manualmente el 22 de julio de 2026; el workflow continúa inactivo.
 
 ## Qué resuelve
 
@@ -19,7 +19,9 @@ La posición de la línea es reproducible mientras Centum devuelva los artículo
 ## Archivos
 
 - `supabase/migrations/001_ventas_v2_paralela.sql`: tablas paralelas y función de ingesta;
-- `n8n/workflows/Centum_Sync_Ventas_Diario_v2.json`: workflow importable, inactivo y sin credenciales.
+- `n8n/workflows/Centum_Sync_Ventas_Diario_v2.json`: workflow importable, inactivo y sin credenciales;
+- `supabase/audits/002_validacion_ventas_v2.sql`: conciliación reutilizable entre v1 y v2;
+- `docs/VALIDACION_INGESTA_V2_2026-07-22.md`: resultados y conclusiones de la prueba real.
 
 ## Instalación controlada
 
@@ -80,7 +82,7 @@ with v1 as (
     count(*) as lineas,
     coalesce(sum(cantidad), 0) as unidades_netas
   from public.ventas_items
-  where fecha_comprobante = date '2026-07-21'
+  where fecha_comprobante = date '2026-07-17'
     and sociedad = 'Endron Prueba'
     and id_sucursal = 6455
 ),
@@ -90,7 +92,7 @@ v2 as (
     count(*) as lineas,
     coalesce(sum(cantidad), 0) as unidades_netas
   from centum_sync.ventas_items_v2
-  where fecha_comprobante = date '2026-07-21'
+  where fecha_comprobante = date '2026-07-17'
     and id_division = 2
     and id_sucursal = 6455
 )
@@ -101,15 +103,21 @@ select 'v2' as version, * from v2;
 
 Cambiar la fecha, sociedad, división y sucursal del ejemplo por la combinación efectivamente probada. Las cantidades negativas deben permanecer como devoluciones y el SKU `Envio` sigue presente en ventas; su exclusión se hará únicamente en las futuras vistas de reposición.
 
+## Resultado de la validación
+
+La prueba de las 26 consultas para el 17 de julio procesó 385 cabeceras y 792 líneas en aproximadamente 1 minuto y 20 segundos. La reejecución de una combinación conservó los mismos totales, confirmando la idempotencia.
+
+La v2 encontró 14 líneas legítimas que la tabla anterior había perdido. En los 14 casos, un mismo artículo aparece dos veces dentro del comprobante. La clave anterior `id_venta + id_articulo` reemplazaba una de las líneas; la clave v2 basada en `linea_ordinal` conserva ambas. El detalle completo se encuentra en [`VALIDACION_INGESTA_V2_2026-07-22.md`](VALIDACION_INGESTA_V2_2026-07-22.md).
+
 ## Criterio para avanzar
 
 No activar ni usar esta versión para el backfill hasta comprobar al menos:
 
-- misma cantidad de comprobantes, líneas y unidades que la carga actual para varios días;
+- reconciliación explicada de las diferencias contra la carga anterior para varios días;
 - separación correcta de `Endron Prueba` por sucursal;
 - reejecución idempotente del mismo día;
 - comportamiento de comprobantes con dos líneas del mismo artículo;
 - volumen y tiempo de ejecución aceptables.
 
-El workflow actual debe permanecer activo hasta completar estas validaciones.
+La primera prueba confirmó la separación, idempotencia y preservación de líneas repetidas. El workflow actual debe permanecer activo hasta adaptar los consumidores de `public.ventas_items`, preparar el backfill y completar el procedimiento de corte.
 
