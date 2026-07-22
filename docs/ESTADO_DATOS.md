@@ -42,7 +42,7 @@ Estructura recibida el 22 de julio de 2026:
 
 El identificador del maestro es `bigint`, mientras que `public.ventas_items.id_articulo` es `integer`. PostgreSQL puede realizar la unión mediante una conversión segura a `bigint`, pero el modelo canónico deberá utilizar un mismo tipo para evitar inconsistencias futuras. Aunque `sku` fue confirmado funcionalmente como único, la columna admite valores nulos; la auditoría debe comprobar nulos y duplicados antes de agregar una restricción.
 
-La muestra recibida confirma que `grupo_articulo` representa el modelo base y que muchas descripciones siguen el patrón `C:<color> T:<talle>`. Se preparó una vista no destructiva para separar ambas variantes y marcar excepciones. La muestra también contiene textos como `NiÃ±o` y `PaÃ±o`; se debe ejecutar la auditoría para determinar si el problema de codificación existe en Supabase o fue introducido al copiar el resultado.
+La muestra recibida confirma que `grupo_articulo` representa el modelo base y que muchas descripciones incluyen marcadores `C:<color>` y `T:<talle>`. Ambos atributos son opcionales y no tenerlos no implica un error. La vista no destructiva los separa cuando existen, admite cualquier orden y clasifica los artículos como `con_color_y_talle`, `solo_color`, `solo_talle`, `sin_variantes_declaradas` o `sin_descripcion`.
 
 Información disponible:
 
@@ -85,7 +85,7 @@ Auditoría ejecutada el 22 de julio de 2026:
 - 28.904 artículos con el patrón completo `C:<color> T:<talle>`;
 - cero textos con indicadores de codificación incorrecta en la base.
 
-La deformación observada como `NiÃ±o` y `PaÃ±o` se produjo al copiar o mostrar la muestra, no está presente en Supabase. La extracción de color y talle debe admitir artículos sin el patrón de variantes, ya que éste no cubre todo el maestro.
+La deformación observada como `NiÃ±o` y `PaÃ±o` se produjo al copiar o mostrar la muestra, no está presente en Supabase. La ausencia de marcadores de color o talle es válida para productos que no manejan esas variantes y no debe contabilizarse como un problema de calidad.
 
 Las cantidades negativas se conservarán como devoluciones/notas de crédito. Las vistas deben exponer por separado unidades positivas, unidades devueltas en valor absoluto y unidades netas. No se deben eliminar ni invertir estos movimientos en la fuente.
 
