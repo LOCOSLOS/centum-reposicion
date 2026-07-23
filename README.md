@@ -161,10 +161,11 @@ Comparar pronósticos, ajustar seguridad y cobertura, modelar estacionalidad y e
 
 ## Estado
 
-Proyecto en etapa de construcción de la base de datos e integración. La ingesta diaria actual sigue operativa. La versión 2 paralela fue instalada y validada manualmente, preserva líneas que la clave anterior sobrescribía y continúa inactiva hasta preparar el backfill y el corte productivo.
+Proyecto en etapa de construcción de la base de datos e integración. La ingesta diaria v2 quedó activa el 23 de julio de 2026 y reemplazó al workflow anterior, que permanece inactivo como mecanismo de reversión. El backfill desde el 25 de mayo hasta el 22 de julio fue conciliado con datos reales y preserva líneas que la clave anterior sobrescribía.
 
 - Fuentes, resultados de auditoría y pendientes: [`docs/ESTADO_DATOS.md`](docs/ESTADO_DATOS.md).
 - Revisión del workflow vigente: [`docs/REVISION_WORKFLOW_VENTAS.md`](docs/REVISION_WORKFLOW_VENTAS.md).
 - Instalación y prueba controlada de la versión 2: [`docs/IMPLEMENTACION_V2_VENTAS.md`](docs/IMPLEMENTACION_V2_VENTAS.md).
 - Resultado de la validación real de la v2: [`docs/VALIDACION_INGESTA_V2_2026-07-22.md`](docs/VALIDACION_INGESTA_V2_2026-07-22.md).
+- Implementación y validación de inventario en Supabase: [`docs/IMPLEMENTACION_STOCK.md`](docs/IMPLEMENTACION_STOCK.md).
 

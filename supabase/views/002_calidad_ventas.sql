@@ -20,7 +20,7 @@ select
   sum(coalesce(cantidad, 0)) as unidades_netas,
   min(actualizado_en) as primera_actualizacion,
   max(actualizado_en) as ultima_actualizacion
-from public.ventas_items
+from centum_sync.vw_ventas_items_canonica
 where id_sucursal is null
 group by fecha_comprobante, sociedad;
 

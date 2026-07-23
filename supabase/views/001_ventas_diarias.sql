@@ -1,7 +1,5 @@
 -- Vistas iniciales para el tablero de ventas.
 -- No modifican las tablas de origen.
--- Las cantidades negativas se mantienen separadas hasta confirmar cómo Centum
--- representa devoluciones y anulaciones.
 
 create or replace view public.vw_ventas_diarias_articulo_sucursal
 with (security_invoker = true)
@@ -9,9 +7,9 @@ as
 select
   i.fecha_comprobante,
   i.sociedad,
-  i.id_sucursal,
+  i.id_sucursal::integer as id_sucursal,
   max(i.sucursal_nombre) as sucursal_nombre,
-  i.id_articulo,
+  i.id_articulo::integer as id_articulo,
   max(coalesce(m.sku, i.codigo)) as sku,
   max(coalesce(m.descripcion_original, i.nombre)) as articulo_nombre,
   max(m.rubro) as rubro,
@@ -35,9 +33,9 @@ select
   sum(coalesce(i.total, 0)) as total_registrado,
   min(i.actualizado_en) as primera_actualizacion,
   max(i.actualizado_en) as ultima_actualizacion
-from public.ventas_items i
+from centum_sync.vw_ventas_items_canonica i
 left join public.vw_maestro_articulos_normalizado m
-  on m.id_articulo = i.id_articulo::bigint
+  on m.id_articulo = i.id_articulo
 where i.fecha_comprobante is not null
   and i.sociedad is not null
   and i.id_sucursal is not null
@@ -101,4 +99,3 @@ group by sociedad, id_sucursal, id_articulo;
 
 comment on view public.vw_ventas_resumen_articulo_sucursal is
   'Resumen móvil de 7, 28 y 56 días por artículo y sucursal para el tablero inicial.';
-
