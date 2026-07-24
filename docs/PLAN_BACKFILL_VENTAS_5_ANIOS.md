@@ -29,19 +29,19 @@ La ejecución `1841` terminó correctamente con 26 de 26 lotes y sin errores. Se
 
 La auditoría confirmó cero grupos duplicados y cero líneas fuera del rango. Centum no informó actividad para el 24 de mayo; la cobertura efectiva fue del 18 al 23 de mayo. Esta ausencia quedó documentada y no se completó con datos inventados.
 
-La siguiente ventana configurada comprende del 1 al 17 de mayo de 2026. Debe validarse antes de avanzar hacia abril.
+Después de esta primera prueba se validaron también las ejecuciones `1842`, `1843` y `1844`. La cobertura continua alcanzó desde el 17 de abril hasta el 24 de mayo de 2026, siempre con 26 de 26 lotes, sin errores y sin registros fuera de rango.
 
 ## Secuencia de ampliación
 
 1. Ejecutar y validar del 18 al 24 de mayo de 2026. **Completado.**
 2. Repetir la misma ventana para confirmar idempotencia solo si aparecen diferencias inesperadas.
-3. Completar y validar del 1 al 17 de mayo de 2026.
-4. Continuar por meses calendario completos hacia atrás.
+3. Completar y validar del 1 al 17 de mayo de 2026. **Completado.**
+4. Continuar hacia atrás en ventanas semanales. **En curso; validado hasta el 17 de abril de 2026.**
 5. Detenerse al completar 12 meses y realizar una auditoría acumulada.
 6. Continuar hasta 24 meses y volver a evaluar calidad y utilidad.
 7. Extender hasta cinco años si Centum mantiene cobertura y tiempos aceptables.
 
-No se deben preparar múltiples ejecuciones simultáneas. La fecha de la siguiente ventana solo se modifica después de validar la anterior.
+No se deben preparar múltiples ejecuciones simultáneas. La fecha de la siguiente ventana solo se modifica después de validar la anterior. La próxima ventana pendiente es del 10 al 16 de abril de 2026.
 
 ## Criterios por ventana
 

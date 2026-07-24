@@ -204,6 +204,20 @@ ejecución 1841
 24 de mayo sin actividad informada por Centum
 ```
 
-La ejecución terminó correctamente. El workflow permanece inactivo y su uso continúa siendo exclusivamente manual. La siguiente ventana configurada comprende del 1 al 17 de mayo de 2026 y debe auditarse antes de avanzar hacia abril.
+La ejecución terminó correctamente. El workflow permanece inactivo y su uso continúa siendo exclusivamente manual.
+
+### Avance al cierre del 24 de julio de 2026
+
+| Ejecución | Ventana | Lotes | Comprobantes | Líneas | Resultado |
+|---|---|---:|---:|---:|---|
+| `1842` | 2026-05-01 a 2026-05-17 | 26/26 | 6.465 | 14.702 | Validada |
+| `1843` | 2026-04-24 a 2026-04-30 | 26/26 | 2.760 | 6.151 | Validada |
+| `1844` | 2026-04-17 a 2026-04-23 | 26/26 | 2.142 | 4.431 | Validada |
+
+Las tres ejecuciones finalizaron sin lotes con error ni registros fuera de sus respectivos rangos. La cobertura histórica continua validada alcanza desde el 17 de abril hasta el 24 de mayo de 2026.
+
+La ejecución `1842` completó la persistencia en aproximadamente ocho minutos, pero n8n demoró en cerrar la vista manual por el volumen retenido durante la ejecución. Supabase ya mostraba 26 de 26 lotes y estado `completada`; no hubo pérdida de datos. A partir de ese resultado se decidió continuar con ventanas semanales.
+
+Al cierre de la jornada el workflow conserva la última ventana ejecutada (`2026-04-17` a `2026-04-23`). La próxima ventana pendiente de configuración es `2026-04-10` a `2026-04-16`.
 
 El plan completo, los controles y los criterios para avanzar están en [`PLAN_BACKFILL_VENTAS_5_ANIOS.md`](PLAN_BACKFILL_VENTAS_5_ANIOS.md).
