@@ -7,6 +7,7 @@ Este documento registra únicamente hechos confirmados, decisiones de trabajo y 
 ## Fuentes y flujos existentes
 
 - Centum es el sistema de gestión de origen.
+- El inventario de manuales de la API pública de Centum está documentado en [`docs/references/centum-api/`](references/centum-api/); los PDF se conservan localmente y no se publican por ser material de un tercero.
 - n8n ejecuta flujos que extraen información de Centum.
 - Los flujos actuales de artículos y ventas guardan sus resultados en Supabase.
 - Existe un flujo de existencias que actualmente genera un reporte, pero todavía no persiste el resultado en una tabla.
@@ -109,6 +110,39 @@ La v2 ya dispone de una clave idempotente provisional por división, sucursal, v
 
 ## Existencias
 
+> Actualización del 24 de julio de 2026: la persistencia ya está implementada. El diseño preliminar que aparece al final de esta sección se conserva únicamente como antecedente y quedó reemplazado por la arquitectura siguiente.
+
+La captura de existencias funciona de manera independiente del reporte Excel:
+
+```text
+03:00 ART — Centum → Supabase
+05:00 ART — Centum → Excel → correo
+```
+
+El workflow productivo de Supabase es `QKKdZL5xHFVNkiFh`. Procesa 12 sucursales, una por vez, y conserva stock positivo, cero y negativo. Casa Central (`6455`) queda identificada como depósito.
+
+La ejecución validada `1836` almacenó 923.892 registros, 12 lotes sin error y 586 cambios reales. Supabase finalizó a las 04:12:54 ART del 24 de julio de 2026.
+
+El modelo implementado contiene:
+
+- `centum_sync.stock_actual`, con una fila por sucursal, sección y artículo;
+- `centum_sync.stock_historial`, limitado a estados iniciales y cambios efectivos;
+- `centum_sync.stock_ejecuciones`, con el estado general de cada corrida;
+- `centum_sync.stock_lotes`, con el resultado de cada sucursal;
+- fecha de observación e ID de ejecución;
+- conservación explícita de stock cero y negativo.
+
+La arquitectura integrada Excel + Supabase fue descartada porque, aunque SQL terminaba correctamente, n8n podía permanecer ejecutando durante horas por el volumen combinado. Los dos flujos independientes son la arquitectura productiva definitiva.
+
+Referencias vigentes:
+
+- [`IMPLEMENTACION_STOCK.md`](IMPLEMENTACION_STOCK.md);
+- [`WORKFLOW_STOCK_SUPABASE.md`](WORKFLOW_STOCK_SUPABASE.md);
+- [`OPERACION_STOCK_SUPABASE.md`](OPERACION_STOCK_SUPABASE.md);
+- [`TROUBLESHOOTING_STOCK_SUPABASE.md`](TROUBLESHOOTING_STOCK_SUPABASE.md).
+
+### Diseño preliminar histórico — reemplazado
+
 El flujo actual ya obtiene las existencias necesarias para producir un reporte. El próximo cambio previsto es agregar una rama de persistencia sin alterar la salida actual:
 
 ```text
@@ -159,7 +193,7 @@ Las cargas de artículos, ventas, existencias y tránsito deberán registrar com
 2. Identificar consumidores de `public.ventas_raw` y `public.ventas_items` y adaptar las vistas a la fuente v2.
 3. Ejecutar un backfill controlado por ventanas y reconciliar varios días antes del corte.
 4. Desactivar el workflow anterior y activar la v2 sin superponer sus horarios.
-5. Revisar el workflow de existencias y definir su persistencia en Supabase.
+5. Monitorear las primeras ejecuciones automáticas del workflow independiente de stock y validar sus 12 lotes en Supabase.
 6. Revisar el CSV de tránsito y definir su clave e importación idempotente.
 7. Decidir si Supabase será la base central del MVP o si existirá una sincronización justificada con Neon.
 

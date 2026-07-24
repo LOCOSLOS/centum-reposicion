@@ -187,3 +187,23 @@ El corte se realizó el 23 de julio de 2026 dentro del proyecto Personal de n8n:
 - 26 lotes esperados por ejecución.
 
 El workflow anterior se conserva inactivo como mecanismo de reversión. El siguiente control obligatorio es validar la primera ejecución automática de V2 y confirmar sus 26 lotes antes de considerar estabilizado el corte.
+
+## Extensión histórica posterior al corte
+
+El 24 de julio de 2026 se decidió extender el histórico gradualmente hasta un máximo provisional de cinco años. Se reutiliza el workflow manual existente `hbcKc5ElvaAxpwYJ`; no se crea una copia adicional.
+
+Primera ventana ejecutada y validada:
+
+```text
+2026-05-18 a 2026-05-24
+ejecución 1841
+26 de 26 lotes procesados, sin errores
+2.891 comprobantes recibidos; 2.849 con líneas y 42 sin líneas
+6.382 líneas canónicas; 5.640 unidades netas
+0 duplicados y 0 líneas fuera del rango solicitado
+24 de mayo sin actividad informada por Centum
+```
+
+La ejecución terminó correctamente. El workflow permanece inactivo y su uso continúa siendo exclusivamente manual. La siguiente ventana configurada comprende del 1 al 17 de mayo de 2026 y debe auditarse antes de avanzar hacia abril.
+
+El plan completo, los controles y los criterios para avanzar están en [`PLAN_BACKFILL_VENTAS_5_ANIOS.md`](PLAN_BACKFILL_VENTAS_5_ANIOS.md).

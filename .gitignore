@@ -1,4 +1,17 @@
-# Credenciales y configuracion local
+# Credenciales y configuración local
 .env
 .env.*
-!.env.example
+env.download
+
+# Respaldos y exportaciones operativas de n8n
+n8n/workflows/*_pre_*.json
+n8n/workflows/Backfill_Ventas_v2_*.json
+n8n/workflows/Centum_Sync_Stock_Diario_pre_cleanup_*.json
+
+# Manuales de terceros conservados solo como referencia local
+docs/references/centum-api/*.pdf
+
+# Artefactos históricos locales que no forman parte del producto vigente
+archive/dash-estados-resultados/*.sql
+archive/dash-estados-resultados/*.json
+archive/dash-estados-resultados/README_ORIGINAL.md

@@ -161,11 +161,17 @@ Comparar pronósticos, ajustar seguridad y cobertura, modelar estacionalidad y e
 
 ## Estado
 
-Proyecto en etapa de construcción de la base de datos e integración. La ingesta diaria v2 quedó activa el 23 de julio de 2026 y reemplazó al workflow anterior, que permanece inactivo como mecanismo de reversión. El backfill desde el 25 de mayo hasta el 22 de julio fue conciliado con datos reales y preserva líneas que la clave anterior sobrescribía.
+Proyecto en etapa de construcción de la base de datos e integración. La ingesta diaria v2 de ventas quedó activa el 23 de julio de 2026. El stock se captura en un workflow independiente todos los días a las 03:00 ART y el reporte Excel conserva su flujo operativo separado a las 05:00 ART. Esta separación evita que el procesamiento del reporte afecte la persistencia utilizada por el sistema de reposición.
 
 - Fuentes, resultados de auditoría y pendientes: [`docs/ESTADO_DATOS.md`](docs/ESTADO_DATOS.md).
 - Revisión del workflow vigente: [`docs/REVISION_WORKFLOW_VENTAS.md`](docs/REVISION_WORKFLOW_VENTAS.md).
 - Instalación y prueba controlada de la versión 2: [`docs/IMPLEMENTACION_V2_VENTAS.md`](docs/IMPLEMENTACION_V2_VENTAS.md).
 - Resultado de la validación real de la v2: [`docs/VALIDACION_INGESTA_V2_2026-07-22.md`](docs/VALIDACION_INGESTA_V2_2026-07-22.md).
 - Implementación y validación de inventario en Supabase: [`docs/IMPLEMENTACION_STOCK.md`](docs/IMPLEMENTACION_STOCK.md).
+- Referencia técnica del workflow de stock: [`docs/WORKFLOW_STOCK_SUPABASE.md`](docs/WORKFLOW_STOCK_SUPABASE.md).
+- Operación y controles diarios de stock: [`docs/OPERACION_STOCK_SUPABASE.md`](docs/OPERACION_STOCK_SUPABASE.md).
+- Resolución de problemas de stock: [`docs/TROUBLESHOOTING_STOCK_SUPABASE.md`](docs/TROUBLESHOOTING_STOCK_SUPABASE.md).
+- Migración del proyecto Estado de Resultados: [`docs/MIGRACION_DASH_ESTADOS_RESULTADOS.md`](docs/MIGRACION_DASH_ESTADOS_RESULTADOS.md).
+- Inventario local de manuales de la API pública de Centum: [`docs/references/centum-api/`](docs/references/centum-api/).
+- Plan de backfill de ventas hasta cinco años: [`docs/PLAN_BACKFILL_VENTAS_5_ANIOS.md`](docs/PLAN_BACKFILL_VENTAS_5_ANIOS.md).
 
