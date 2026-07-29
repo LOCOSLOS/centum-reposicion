@@ -41,7 +41,7 @@ Después de esta primera prueba se validaron también las ejecuciones `1842`, `1
 6. Continuar hasta 24 meses y volver a evaluar calidad y utilidad.
 7. Extender hasta cinco años si Centum mantiene cobertura y tiempos aceptables.
 
-No se deben preparar múltiples ejecuciones simultáneas. La fecha de la siguiente ventana solo se modifica después de validar la anterior. La próxima ventana pendiente es del 10 al 16 de abril de 2026.
+No se deben preparar múltiples ejecuciones simultáneas. La fecha de la siguiente ventana solo se modifica después de validar la anterior. Al 29 de julio de 2026 la cobertura continua validada llega hasta el 12 de diciembre de 2025. La próxima ventana pendiente es del 28 de noviembre al 11 de diciembre de 2025.
 
 ## Criterios por ventana
 
@@ -103,6 +103,12 @@ Antes de preparar la primera ventana histórica se exportaron:
 - `n8n/workflows/Backfill_Ventas_v2_2026-05-18_a_2026-05-24.json`.
 
 Las exportaciones contienen referencias a credenciales de n8n, no sus valores secretos. No deben editarse para insertar credenciales.
+
+La configuración vigente del workflow manual también se conserva en:
+
+- `n8n/workflows/Centum_Backfill_Ventas_v2_manual_actual.json`.
+
+El nodo `Obtiene Ventas` tiene reintentos habilitados: tres intentos con diez segundos de espera. El workflow permanece inactivo y se ejecuta exclusivamente de forma manual.
 
 ## Límites y señales para detenerse
 

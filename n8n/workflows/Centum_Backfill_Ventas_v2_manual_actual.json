@@ -1,0 +1,408 @@
+{
+    "name":  "Centum ? Supabase: Backfill Ventas v2 (MANUAL)",
+    "nodes":  [
+                  {
+                      "parameters":  {
+
+                                     },
+                      "id":  "1c36650f-0c71-4856-9233-4fed3a6ae3e0",
+                      "name":  "Inicio Manual",
+                      "type":  "n8n-nodes-base.manualTrigger",
+                      "typeVersion":  1,
+                      "position":  [
+                                       -1104,
+                                       128
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "jsCode":  "return [{\n  json: {\n    idEjecucion: String($execution.id),\n    fechaDesde: \u00272025-12-12\u0027,\n    fechaHasta: \u00272025-12-25\u0027,\n    lotesEsperados: 26\n  }\n}];"
+                                     },
+                      "id":  "58e8ebd9-dc0f-490f-96ef-33dcd7b705b3",
+                      "name":  "Inicializa Ejecucion",
+                      "type":  "n8n-nodes-base.code",
+                      "typeVersion":  2,
+                      "position":  [
+                                       -880,
+                                       128
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "operation":  "executeQuery",
+                                         "query":  "INSERT INTO centum_sync.carga_ejecuciones_v2 (id_ejecucion, workflow, modo, fecha_desde, fecha_hasta, estado, lotes_esperados, iniciada_en, finalizada_en, mensaje_error)\nVALUES (\n  \u0027{{ $json.idEjecucion }}\u0027,\n  \u0027Centum Sync Ventas Diario v2\u0027,\n  \u0027backfill_piloto\u0027,\n  \u0027{{ $json.fechaDesde }}\u0027::date,\n  \u0027{{ $json.fechaHasta }}\u0027::date,\n  \u0027iniciada\u0027,\n  {{ $json.lotesEsperados }},\n  now(),\n  NULL,\n  NULL\n)\nON CONFLICT (id_ejecucion) DO UPDATE SET\n  estado = \u0027iniciada\u0027,\n  finalizada_en = NULL,\n  mensaje_error = NULL\nRETURNING id_ejecucion;",
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "id":  "47011d56-acab-417c-97f9-0355f3335fc5",
+                      "name":  "Registra Ejecucion",
+                      "type":  "n8n-nodes-base.postgres",
+                      "typeVersion":  2.5,
+                      "position":  [
+                                       -656,
+                                       128
+                                   ],
+                      "credentials":  {
+                                          "postgres":  {
+                                                           "id":  "EHXOTkKVgCHfYUZu",
+                                                           "name":  "Postgres account 2"
+                                                       }
+                                      }
+                  },
+                  {
+                      "parameters":  {
+                                         "jsCode":  "const ejecucion = $(\u0027Inicializa Ejecucion\u0027).first().json;\nconst ID_COMPARTIDA = 2;\n\nconst sucursales = [\n  { idSucursal: 6455, sucursalNombre: \u002701\u0027,                       idDivisionPropia: 1 },\n  { idSucursal: 6457, sucursalNombre: \u002702 - Local de Rivadavia\u0027, idDivisionPropia: 3 },\n  { idSucursal: 6084, sucursalNombre: \u002705 - Local de Monroe\u0027,    idDivisionPropia: 1 },\n  { idSucursal: 6761, sucursalNombre: \u002711 - Local de Gallardo\u0027,  idDivisionPropia: 3 },\n  { idSucursal: 6458, sucursalNombre: \u002716 - Local de Salguero\u0027,  idDivisionPropia: 1 },\n  { idSucursal: 8774, sucursalNombre: \u002717 - Local de Boedo\u0027,     idDivisionPropia: 1 },\n  { idSucursal: 9254, sucursalNombre: \u002718 - E-Commerce\u0027,         idDivisionPropia: 6 },\n  { idSucursal: 9258, sucursalNombre: \u002720 - Local Membrillar\u0027,   idDivisionPropia: 3 },\n  { idSucursal: 9261, sucursalNombre: \u002721 - Mayorista\u0027,          idDivisionPropia: 1 },\n  { idSucursal: 9281, sucursalNombre: \u002723 - Local Plaza Italia\u0027, idDivisionPropia: 1 },\n  { idSucursal: 9292, sucursalNombre: \u002724 - Local Doblas\u0027,       idDivisionPropia: 3 },\n  { idSucursal: 9302, sucursalNombre: \u002725 - Local Beltran\u0027,      idDivisionPropia: 1 },\n  { idSucursal: 9308, sucursalNombre: \u002726 - Local Parral\u0027,       idDivisionPropia: 1 }\n];\n\nconst consultas = [];\nfor (const sucursal of sucursales) {\n  for (const idDivision of [ID_COMPARTIDA, sucursal.idDivisionPropia]) {\n    consultas.push({\n      json: {\n        idEjecucion: ejecucion.idEjecucion,\n        fechaDesde: ejecucion.fechaDesde,\n        fechaHasta: ejecucion.fechaHasta,\n        idSucursal: sucursal.idSucursal,\n        sucursalNombre: sucursal.sucursalNombre,\n        idDivision\n      }\n    });\n  }\n}\n\nreturn consultas;"
+                                     },
+                      "id":  "a2e1a504-bbdd-4a23-af01-fa5d9db392aa",
+                      "name":  "Genera Consultas",
+                      "type":  "n8n-nodes-base.code",
+                      "typeVersion":  2,
+                      "position":  [
+                                       -448,
+                                       128
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "id":  "cd9e996a-d710-48bc-a679-d3059e4f9fc8",
+                      "name":  "Loop Over Items",
+                      "type":  "n8n-nodes-base.splitInBatches",
+                      "typeVersion":  3,
+                      "position":  [
+                                       -224,
+                                       128
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "resource":  "generarTokenSeguridad"
+                                     },
+                      "id":  "b709b4c6-8e1d-4f3c-a58d-682c9fe0e4a2",
+                      "name":  "TOKEN",
+                      "type":  "n8n-nodes-centum.centum",
+                      "typeVersion":  1,
+                      "position":  [
+                                       0,
+                                       224
+                                   ],
+                      "credentials":  {
+                                          "centumApi":  {
+                                                            "id":  "0LS5odKVRZ6FGQh2",
+                                                            "name":  "Centum account"
+                                                        }
+                                      }
+                  },
+                  {
+                      "parameters":  {
+                                         "assignments":  {
+                                                             "assignments":  [
+                                                                                 {
+                                                                                     "id":  "ctx001",
+                                                                                     "name":  "CentumSuiteAccessToken",
+                                                                                     "value":  "={{ $json }}",
+                                                                                     "type":  "string"
+                                                                                 },
+                                                                                 {
+                                                                                     "id":  "ctx002",
+                                                                                     "name":  "idEjecucion",
+                                                                                     "value":  "={{ $(\u0027Loop Over Items\u0027).item.json.idEjecucion }}",
+                                                                                     "type":  "string"
+                                                                                 },
+                                                                                 {
+                                                                                     "id":  "ctx003",
+                                                                                     "name":  "fechaDesde",
+                                                                                     "value":  "={{ $(\u0027Loop Over Items\u0027).item.json.fechaDesde }}",
+                                                                                     "type":  "string"
+                                                                                 },
+                                                                                 {
+                                                                                     "id":  "ctx004",
+                                                                                     "name":  "fechaHasta",
+                                                                                     "value":  "={{ $(\u0027Loop Over Items\u0027).item.json.fechaHasta }}",
+                                                                                     "type":  "string"
+                                                                                 },
+                                                                                 {
+                                                                                     "id":  "ctx005",
+                                                                                     "name":  "idSucursal",
+                                                                                     "value":  "={{ $(\u0027Loop Over Items\u0027).item.json.idSucursal }}",
+                                                                                     "type":  "number"
+                                                                                 },
+                                                                                 {
+                                                                                     "id":  "ctx006",
+                                                                                     "name":  "sucursalNombre",
+                                                                                     "value":  "={{ $(\u0027Loop Over Items\u0027).item.json.sucursalNombre }}",
+                                                                                     "type":  "string"
+                                                                                 },
+                                                                                 {
+                                                                                     "id":  "ctx007",
+                                                                                     "name":  "idDivision",
+                                                                                     "value":  "={{ $(\u0027Loop Over Items\u0027).item.json.idDivision }}",
+                                                                                     "type":  "number"
+                                                                                 }
+                                                                             ]
+                                                         },
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "id":  "7d4ebec6-790b-45d1-9aea-b98b8f87270d",
+                      "name":  "Normaliza Contexto",
+                      "type":  "n8n-nodes-base.set",
+                      "typeVersion":  3.4,
+                      "position":  [
+                                       224,
+                                       224
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "method":  "POST",
+                                         "url":  "https://plataforma5.centum.com.ar:23990/BL6/Ventas/FiltrosVentaConsulta/",
+                                         "sendHeaders":  true,
+                                         "headerParameters":  {
+                                                                  "parameters":  [
+                                                                                     {
+                                                                                         "name":  "Accept",
+                                                                                         "value":  "application/json"
+                                                                                     },
+                                                                                     {
+                                                                                         "name":  "Content-Type",
+                                                                                         "value":  "application/json"
+                                                                                     },
+                                                                                     {
+                                                                                         "name":  "CentumSuiteConsumidorApiPublicaId",
+                                                                                         "value":  "7"
+                                                                                     },
+                                                                                     {
+                                                                                         "name":  "CentumSuiteAccessToken",
+                                                                                         "value":  "={{ $json.CentumSuiteAccessToken }}"
+                                                                                     }
+                                                                                 ]
+                                                              },
+                                         "sendBody":  true,
+                                         "specifyBody":  "json",
+                                         "jsonBody":  "={{ JSON.stringify({ FechaDocumentoDesde: $json.fechaDesde, FechaDocumentoHasta: $json.fechaHasta, IdSucursal: $json.idSucursal, IdDivisionEmpresaGrupoEconomico: $json.idDivision }) }}",
+                                         "options":  {
+                                                         "lowercaseHeaders":  false,
+                                                         "response":  {
+                                                                          "response":  {
+                                                                                           "fullResponse":  true,
+                                                                                           "responseFormat":  "json"
+                                                                                       }
+                                                                      }
+                                                     }
+                                     },
+                      "id":  "01820add-8a8c-47eb-a245-c7f644b7737e",
+                      "name":  "Obtiene Ventas",
+                      "type":  "n8n-nodes-base.httpRequest",
+                      "typeVersion":  4.4,
+                      "position":  [
+                                       448,
+                                       224
+                                   ],
+                      "retryOnFail":  true,
+                      "maxTries":  3,
+                      "waitBetweenTries":  10000
+                  },
+                  {
+                      "parameters":  {
+                                         "jsCode":  "const divisionMap = {\n  1: \u0027Endron Empresa\u0027,\n  2: \u0027Endron Prueba\u0027,\n  3: \u0027Nich Empresa\u0027,\n  6: \u0027Capay\u0027\n};\n\nfunction sqlTexto(valor) {\n  if (valor === null || valor === undefined) return \u0027NULL\u0027;\n  return \"\u0027\" + String(valor).replace(/\u0027/g, \"\u0027\u0027\") + \"\u0027\";\n}\n\nfunction sqlJson(valor) {\n  return \"\u0027\" + JSON.stringify(valor).replace(/\u0027/g, \"\u0027\u0027\") + \"\u0027::jsonb\";\n}\n\nconst contexto = $(\u0027Normaliza Contexto\u0027).item.json;\nconst respuesta = $input.item.json.body ?? {};\nconst sociedad =\n  divisionMap[contexto.idDivision] ||\n  `Division ${contexto.idDivision}`;\n\nconst query = `\nselect *\nfrom centum_sync.ingestar_lote_ventas_v2(\n  ${sqlTexto(contexto.idEjecucion)},\n  ${Number(contexto.idDivision)},\n  ${sqlTexto(sociedad)},\n  ${Number(contexto.idSucursal)},\n  ${sqlTexto(contexto.sucursalNombre)},\n  ${sqlTexto(contexto.fechaDesde)}::date,\n  ${sqlTexto(contexto.fechaHasta)}::date,\n  ${sqlJson(respuesta)}\n);\n`;\n\nreturn [\n  {\n    json: {\n      query\n    }\n  }\n];"
+                                     },
+                      "id":  "1338f574-e90e-4fe5-8c35-2db5d1440a84",
+                      "name":  "Prepara Ingesta",
+                      "type":  "n8n-nodes-base.code",
+                      "typeVersion":  2,
+                      "position":  [
+                                       672,
+                                       224
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "operation":  "executeQuery",
+                                         "query":  "{{ $json.query }}",
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "id":  "61773a6b-4a55-43a7-acc7-073507fc7384",
+                      "name":  "Ingiere Lote v2",
+                      "type":  "n8n-nodes-base.postgres",
+                      "typeVersion":  2.5,
+                      "position":  [
+                                       880,
+                                       224
+                                   ],
+                      "credentials":  {
+                                          "postgres":  {
+                                                           "id":  "EHXOTkKVgCHfYUZu",
+                                                           "name":  "Postgres account 2"
+                                                       }
+                                      }
+                  },
+                  {
+                      "parameters":  {
+                                         "operation":  "executeQuery",
+                                         "query":  "UPDATE centum_sync.carga_ejecuciones_v2\nSET estado = CASE\n      WHEN lotes_procesados = lotes_esperados THEN \u0027completada\u0027\n      ELSE \u0027con_error\u0027\n    END,\n    finalizada_en = now(),\n    mensaje_error = CASE\n      WHEN lotes_procesados = lotes_esperados THEN NULL\n      ELSE concat(\u0027Se esperaban \u0027, lotes_esperados, \u0027 lotes y se procesaron \u0027, lotes_procesados)\n    END\nWHERE id_ejecucion = \u0027{{ $(\u0027Inicializa Ejecucion\u0027).first().json.idEjecucion }}\u0027\nRETURNING *;",
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "id":  "3b614130-bcb7-411d-bf54-c39bf11f3a80",
+                      "name":  "Finaliza Ejecucion",
+                      "type":  "n8n-nodes-base.postgres",
+                      "typeVersion":  2.5,
+                      "position":  [
+                                       0,
+                                       0
+                                   ],
+                      "credentials":  {
+                                          "postgres":  {
+                                                           "id":  "EHXOTkKVgCHfYUZu",
+                                                           "name":  "Postgres account 2"
+                                                       }
+                                      }
+                  }
+              ],
+    "pinData":  {
+
+                },
+    "connections":  {
+                        "Inicio Manual":  {
+                                              "main":  [
+                                                           [
+                                                               {
+                                                                   "node":  "Inicializa Ejecucion",
+                                                                   "type":  "main",
+                                                                   "index":  0
+                                                               }
+                                                           ]
+                                                       ]
+                                          },
+                        "Inicializa Ejecucion":  {
+                                                     "main":  [
+                                                                  [
+                                                                      {
+                                                                          "node":  "Registra Ejecucion",
+                                                                          "type":  "main",
+                                                                          "index":  0
+                                                                      }
+                                                                  ]
+                                                              ]
+                                                 },
+                        "Registra Ejecucion":  {
+                                                   "main":  [
+                                                                [
+                                                                    {
+                                                                        "node":  "Genera Consultas",
+                                                                        "type":  "main",
+                                                                        "index":  0
+                                                                    }
+                                                                ]
+                                                            ]
+                                               },
+                        "Genera Consultas":  {
+                                                 "main":  [
+                                                              [
+                                                                  {
+                                                                      "node":  "Loop Over Items",
+                                                                      "type":  "main",
+                                                                      "index":  0
+                                                                  }
+                                                              ]
+                                                          ]
+                                             },
+                        "Loop Over Items":  {
+                                                "main":  [
+                                                             [
+                                                                 {
+                                                                     "node":  "Finaliza Ejecucion",
+                                                                     "type":  "main",
+                                                                     "index":  0
+                                                                 }
+                                                             ],
+                                                             [
+                                                                 {
+                                                                     "node":  "TOKEN",
+                                                                     "type":  "main",
+                                                                     "index":  0
+                                                                 }
+                                                             ]
+                                                         ]
+                                            },
+                        "TOKEN":  {
+                                      "main":  [
+                                                   [
+                                                       {
+                                                           "node":  "Normaliza Contexto",
+                                                           "type":  "main",
+                                                           "index":  0
+                                                       }
+                                                   ]
+                                               ]
+                                  },
+                        "Normaliza Contexto":  {
+                                                   "main":  [
+                                                                [
+                                                                    {
+                                                                        "node":  "Obtiene Ventas",
+                                                                        "type":  "main",
+                                                                        "index":  0
+                                                                    }
+                                                                ]
+                                                            ]
+                                               },
+                        "Obtiene Ventas":  {
+                                               "main":  [
+                                                            [
+                                                                {
+                                                                    "node":  "Prepara Ingesta",
+                                                                    "type":  "main",
+                                                                    "index":  0
+                                                                }
+                                                            ]
+                                                        ]
+                                           },
+                        "Prepara Ingesta":  {
+                                                "main":  [
+                                                             [
+                                                                 {
+                                                                     "node":  "Ingiere Lote v2",
+                                                                     "type":  "main",
+                                                                     "index":  0
+                                                                 }
+                                                             ]
+                                                         ]
+                                            },
+                        "Ingiere Lote v2":  {
+                                                "main":  [
+                                                             [
+                                                                 {
+                                                                     "node":  "Loop Over Items",
+                                                                     "type":  "main",
+                                                                     "index":  0
+                                                                 }
+                                                             ]
+                                                         ]
+                                            }
+                    },
+    "active":  false,
+    "settings":  {
+                     "executionOrder":  "v1",
+                     "timezone":  "America/Argentina/Buenos_Aires",
+                     "saveManualExecutions":  false,
+                     "saveDataSuccessExecution":  "none",
+                     "saveDataErrorExecution":  "all",
+                     "saveExecutionProgress":  false
+                 },
+    "versionId":  "63178825-677c-4420-bec2-801992dde087",
+    "meta":  {
+                 "sourceWorkflowId":  "hbcKc5ElvaAxpwYJ",
+                 "exportedAt":  "2026-07-29",
+                 "credentialsNote":  "Solo referencias de credenciales de n8n; no contiene valores secretos"
+             }
+}

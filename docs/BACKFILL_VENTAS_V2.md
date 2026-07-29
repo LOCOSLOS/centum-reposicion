@@ -221,3 +221,24 @@ La ejecución `1842` completó la persistencia en aproximadamente ocho minutos, 
 Al cierre de la jornada el workflow conserva la última ventana ejecutada (`2026-04-17` a `2026-04-23`). La próxima ventana pendiente de configuración es `2026-04-10` a `2026-04-16`.
 
 El plan completo, los controles y los criterios para avanzar están en [`PLAN_BACKFILL_VENTAS_5_ANIOS.md`](PLAN_BACKFILL_VENTAS_5_ANIOS.md).
+
+### Avance validado al 29 de julio de 2026
+
+El backfill continuó hacia atrás, primero con ventanas semanales y luego con ventanas de catorce días. Todas las ventanas listadas fueron validadas contra cabecera, lotes y líneas almacenadas, con cero registros fuera de rango, cero líneas sin fecha o artículo y cero duplicados por la clave v2.
+
+| Ejecución | Ventana | Lotes | Comprobantes | Líneas | Resultado |
+|---|---|---:|---:|---:|---|
+| `1861` | 2026-04-10 a 2026-04-16 | 26/26 | 2.393 | 5.047 | Validada |
+| `1862` | 2026-04-03 a 2026-04-09 | 26/26 | 1.897 | 4.011 | Validada; sin actividad informada el 3 de abril |
+| `1863` | 2026-03-20 a 2026-04-02 | 26/26 | 3.875 | 8.551 | Validada |
+| `1864` | 2026-03-06 a 2026-03-19 | 26/26 | 4.321 | 9.424 | Validada |
+| `1883` | 2026-02-20 a 2026-03-05 | 26/26 | 4.258 | 8.880 | Validada |
+| `1884` | 2026-02-06 a 2026-02-19 | 26/26 | 4.105 | 8.947 | Validada |
+| `1886` | 2026-01-23 a 2026-02-05 | 26/26 | 5.182 | 11.851 | Validada; recuperó la ejecución parcial `1885` |
+| `1887` | 2026-01-09 a 2026-01-22 | 26/26 | 5.894 | 12.486 | Validada |
+| `1888` | 2025-12-26 a 2026-01-08 | 26/26 | 8.936 | 18.051 | Validada |
+| `1889` | 2025-12-12 a 2025-12-25 | 26/26 | 13.215 | 29.116 | Validada; sin actividad informada el 25 de diciembre |
+
+La ejecución `1885` sufrió un timeout de Centum después de procesar 9 de 26 lotes. Se conservó como auditoría y se marcó `con_error` después de validar la recuperación completa mediante `1886`. A partir de ese incidente, el nodo `Obtiene Ventas` quedó configurado con tres intentos y diez segundos de espera entre intentos.
+
+La cobertura histórica continua validada alcanza desde el 12 de diciembre de 2025 hasta la actualidad. La expansión se pausó con el workflow manual inactivo y la última ventana todavía configurada. La próxima ventana pendiente es `2025-11-28` a `2025-12-11`.

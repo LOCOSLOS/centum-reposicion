@@ -162,17 +162,33 @@ Antes de implementarlo se debe revisar el workflow exportado de n8n, las columna
 
 ## Stock en tránsito
 
-El CSV existente será la fuente del stock en tránsito. Su importación deberá conservar:
+El stock en tránsito se obtiene cruzando dos reportes CSV diarios de Google Drive: órdenes despachadas y órdenes efectivamente recibidas. Cada ejecución reemplaza el documento completo manteniendo el mismo nombre, por lo que el ID de Drive cambia y no debe persistirse como referencia estable.
+
+La clave de cruce validada sobre muestras reales es:
+
+```text
+NumeroDocumento + Clave
+```
+
+La cantidad pendiente se calcula por documento y artículo:
+
+```text
+max(CantidadValidacionDespacho - CantidadValidacionRecepcion, 0)
+```
+
+Debe utilizarse la columna de detalle `CantidadValidacionDespacho`, sin sufijo. `CantidadValidacionDespacho1` representa un total repetido del documento y no debe sumarse por artículo.
+
+La importación deberá conservar:
 
 - identificación del documento o transferencia, si existe;
 - artículo o SKU;
 - origen y destino;
-- cantidad enviada y cantidad pendiente;
+- cantidad despachada, recibida y pendiente;
 - estado y fechas disponibles;
 - nombre o huella del archivo;
 - fecha e identificador de la importación.
 
-Queda pendiente revisar las columnas del archivo y definir una clave estable. También se debe establecer qué significa que una transferencia deje de aparecer en una nueva versión del CSV antes de marcarla como recibida o cancelada.
+La muestra de despachos contenía seis filas informativas antes del encabezado real; la muestra de recepciones comenzaba directamente con la tabla. El proceso debe localizar los encabezados por nombre y no asumir una fila fija. La búsqueda en Drive debe realizarse diariamente por carpeta y nombre exacto, exigir un único resultado y validar la vigencia del archivo, porque el ID cambia en cada reemplazo.
 
 ## Auditoría de ejecuciones
 
@@ -194,8 +210,8 @@ Las cargas de artículos, ventas, existencias y tránsito deberán registrar com
 3. Ejecutar un backfill controlado por ventanas y reconciliar varios días antes del corte.
 4. Desactivar el workflow anterior y activar la v2 sin superponer sus horarios.
 5. Monitorear las primeras ejecuciones automáticas del workflow independiente de stock y validar sus 12 lotes en Supabase.
-6. Revisar el CSV de tránsito y definir su clave e importación idempotente.
-7. Decidir si Supabase será la base central del MVP o si existirá una sincronización justificada con Neon.
+6. Diseñar la importación idempotente de los dos CSV de tránsito usando la clave y cantidades ya validadas.
+7. Implementar la persistencia de tránsito cuando se apruebe la etapa correspondiente.
 
 La revisión técnica del flujo diario se encuentra en [`REVISION_WORKFLOW_VENTAS.md`](REVISION_WORKFLOW_VENTAS.md).
 
