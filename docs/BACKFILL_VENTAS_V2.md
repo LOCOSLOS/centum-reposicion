@@ -238,7 +238,18 @@ El backfill continuó hacia atrás, primero con ventanas semanales y luego con v
 | `1887` | 2026-01-09 a 2026-01-22 | 26/26 | 5.894 | 12.486 | Validada |
 | `1888` | 2025-12-26 a 2026-01-08 | 26/26 | 8.936 | 18.051 | Validada |
 | `1889` | 2025-12-12 a 2025-12-25 | 26/26 | 13.215 | 29.116 | Validada; sin actividad informada el 25 de diciembre |
+| `1911` | 2025-11-28 a 2025-12-11 | 26/26 | 7.775 | 17.208 | Validada |
+| `1912` | 2025-11-14 a 2025-11-27 | 26/26 | 6.284 | 13.998 | Completada sin errores |
+| `1913` | 2025-10-31 a 2025-11-13 | 26/26 | 6.394 | 14.108 | Validada |
+| `1915` | 2025-10-17 a 2025-10-30 | 26/26 | 7.565 | 16.184 | Validada |
+| `1916` | 2025-10-03 a 2025-10-16 | 26/26 | 7.633 | 18.073 | Validada |
+| `1917` | 2025-09-19 a 2025-10-02 | 26/26 | 4.549 | 10.110 | Validada |
+| `1919` | 2025-09-05 a 2025-09-18 | 26/26 | 6.199 | 14.189 | Validada |
+| `1920` | 2025-08-22 a 2025-09-04 | 26/26 | 5.001 | 10.502 | Validada |
+| `1921` | 2025-08-08 a 2025-08-21 | 26/26 | 4.899 | 10.060 | Validada |
 
 La ejecución `1885` sufrió un timeout de Centum después de procesar 9 de 26 lotes. Se conservó como auditoría y se marcó `con_error` después de validar la recuperación completa mediante `1886`. A partir de ese incidente, el nodo `Obtiene Ventas` quedó configurado con tres intentos y diez segundos de espera entre intentos.
 
-La cobertura histórica continua validada alcanza desde el 12 de diciembre de 2025 hasta la actualidad. La expansión se pausó con el workflow manual inactivo y la última ventana todavía configurada. La próxima ventana pendiente es `2025-11-28` a `2025-12-11`.
+El 30 de julio de 2026 la ejecución `1909` repitió de forma idempotente la ventana del 12 al 25 de diciembre de 2025, con los mismos 13.215 comprobantes y 29.116 líneas de `1889`. No amplió la cobertura ni generó diferencias en los totales.
+
+La cobertura histórica continua validada alcanza desde el 8 de agosto de 2025 hasta la actualidad. La expansión se pausó después de validar `1921`, con cero registros fuera de rango y cero líneas sin fecha, artículo o sucursal. El workflow manual permanece inactivo y conserva la última ventana ejecutada (`2025-08-08` a `2025-08-21`). La próxima ventana pendiente, todavía sin configurar, es `2025-07-25` a `2025-08-07`.

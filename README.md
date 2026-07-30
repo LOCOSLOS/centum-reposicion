@@ -161,7 +161,7 @@ Comparar pronósticos, ajustar seguridad y cobertura, modelar estacionalidad y e
 
 ## Estado
 
-Proyecto en etapa de construcción de la base de datos e integración. La ingesta diaria v2 de ventas quedó activa el 23 de julio de 2026. El stock se captura en un workflow independiente todos los días a las 03:00 ART y el reporte Excel conserva su flujo operativo separado a las 05:00 ART. Esta separación evita que el procesamiento del reporte afecte la persistencia utilizada por el sistema de reposición. Al 29 de julio de 2026 el histórico continuo de ventas está validado desde el 12 de diciembre de 2025 hasta la actualidad; Supabase fue ampliado al plan Pro para continuar la expansión. El backfill manual permanece inactivo y la próxima ventana pendiente es del 28 de noviembre al 11 de diciembre de 2025.
+Proyecto en etapa de construcción de la base de datos e integración. La ingesta diaria v2 de ventas quedó activa el 23 de julio de 2026. El stock se captura en un workflow independiente todos los días a las 03:00 ART y el reporte Excel conserva su flujo operativo separado a las 05:00 ART. Esta separación evita que el procesamiento del reporte afecte la persistencia utilizada por el sistema de reposición. Al 30 de julio de 2026 el histórico continuo de ventas está validado desde el 8 de agosto de 2025 hasta la actualidad; Supabase fue ampliado al plan Pro para continuar la expansión. El backfill manual permanece inactivo y la expansión histórica está pausada. La próxima ventana pendiente es del 25 de julio al 7 de agosto de 2025.
 
 - Fuentes, resultados de auditoría y pendientes: [`docs/ESTADO_DATOS.md`](docs/ESTADO_DATOS.md).
 - Revisión del workflow vigente: [`docs/REVISION_WORKFLOW_VENTAS.md`](docs/REVISION_WORKFLOW_VENTAS.md).

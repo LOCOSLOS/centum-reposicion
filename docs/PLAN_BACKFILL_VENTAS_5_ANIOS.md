@@ -41,7 +41,7 @@ Después de esta primera prueba se validaron también las ejecuciones `1842`, `1
 6. Continuar hasta 24 meses y volver a evaluar calidad y utilidad.
 7. Extender hasta cinco años si Centum mantiene cobertura y tiempos aceptables.
 
-No se deben preparar múltiples ejecuciones simultáneas. La fecha de la siguiente ventana solo se modifica después de validar la anterior. Al 29 de julio de 2026 la cobertura continua validada llega hasta el 12 de diciembre de 2025. La próxima ventana pendiente es del 28 de noviembre al 11 de diciembre de 2025.
+No se deben preparar múltiples ejecuciones simultáneas. La fecha de la siguiente ventana solo se modifica después de validar la anterior. Al 30 de julio de 2026 la cobertura continua validada llega hasta el 8 de agosto de 2025. La expansión quedó pausada después de validar la ejecución `1921`; la próxima ventana pendiente es del 25 de julio al 7 de agosto de 2025 y todavía no está configurada en el workflow.
 
 ## Criterios por ventana
 
