@@ -190,7 +190,7 @@ El workflow anterior se conserva inactivo como mecanismo de reversión. El sigui
 
 ## Extensión histórica posterior al corte
 
-El 24 de julio de 2026 se decidió extender el histórico gradualmente hasta un máximo provisional de cinco años. Se reutiliza el workflow manual existente `hbcKc5ElvaAxpwYJ`; no se crea una copia adicional.
+El 24 de julio de 2026 se decidió extender el histórico gradualmente. El 31 de julio de 2026 se fijó el alcance definitivo de esta etapa en aproximadamente 24 meses: completar julio de 2024 y detener allí el backfill. Se reutiliza el workflow manual existente `hbcKc5ElvaAxpwYJ`; no se crea una copia adicional.
 
 Primera ventana ejecutada y validada:
 
@@ -253,3 +253,30 @@ La ejecución `1885` sufrió un timeout de Centum después de procesar 9 de 26 l
 El 30 de julio de 2026 la ejecución `1909` repitió de forma idempotente la ventana del 12 al 25 de diciembre de 2025, con los mismos 13.215 comprobantes y 29.116 líneas de `1889`. No amplió la cobertura ni generó diferencias en los totales.
 
 La cobertura histórica continua validada alcanza desde el 8 de agosto de 2025 hasta la actualidad. La expansión se pausó después de validar `1921`, con cero registros fuera de rango y cero líneas sin fecha, artículo o sucursal. El workflow manual permanece inactivo y conserva la última ventana ejecutada (`2025-08-08` a `2025-08-21`). La próxima ventana pendiente, todavía sin configurar, es `2025-07-25` a `2025-08-07`.
+
+### Avance validado al 31 de julio de 2026
+
+La ejecución `1933` repitió de forma idempotente la ventana del 8 al 21 de agosto de 2025. Las siguientes ejecuciones ampliaron la cobertura continua hacia atrás:
+
+| Ejecución | Ventana | Lotes | Comprobantes | Líneas | Resultado |
+|---|---|---:|---:|---:|---|
+| `1934` | 2025-07-25 a 2025-08-07 | 26/26 | 5.355 | 12.571 | Validada |
+| `1935` | 2025-07-11 a 2025-07-24 | 26/26 | 6.886 | 14.646 | Validada |
+| `1936` | 2025-06-27 a 2025-07-10 | 26/26 | 6.300 | 14.338 | Validada |
+| `1937` | 2025-06-13 a 2025-06-26 | 26/26 | 6.029 | 13.309 | Validada |
+| `1938` | 2025-05-30 a 2025-06-12 | 26/26 | 6.630 | 14.547 | Validada |
+| `1939` | 2025-05-16 a 2025-05-29 | 26/26 | 5.602 | 12.608 | Validada |
+| `1940` | 2025-05-02 a 2025-05-15 | 26/26 | 5.579 | 12.881 | Validada |
+| `1942` | 2025-04-18 a 2025-05-01 | 26/26 | 4.954 | 11.056 | Validada |
+| `1943` | 2025-04-04 a 2025-04-17 | 26/26 | 5.570 | 12.917 | Validada |
+| `1944` | 2025-03-21 a 2025-04-03 | 26/26 | 4.529 | 10.776 | Validada |
+| `1945` | 2025-03-07 a 2025-03-20 | 26/26 | 4.530 | 10.524 | Validada |
+| `1946` | 2025-02-21 a 2025-03-06 | 26/26 | 4.297 | 9.640 | Validada |
+| `1947` | 2025-02-07 a 2025-02-20 | 26/26 | 5.579 | 12.255 | Validada |
+| `1949` | 2025-01-24 a 2025-02-06 | 26/26 | 5.864 | 12.581 | Validada |
+
+Todas estas ventanas terminaron con 26 de 26 lotes procesados, estado `completada` y sin errores. En varias ejecuciones la interfaz manual de n8n quedó visualmente procesando después de que Supabase ya había confirmado la finalización; en esos casos se validó primero la cabecera y los lotes en Supabase y luego se canceló únicamente la ejecución visual, sin reejecutar la carga.
+
+La cobertura continua validada alcanza desde el 24 de enero de 2025 hasta la actualidad. El workflow manual permanece inactivo y conserva la última ventana ejecutada (`2025-01-24` a `2025-02-06`). La próxima ventana pendiente, todavía sin configurar, es `2025-01-10` a `2025-01-23`.
+
+El objetivo acordado ya no es alcanzar cinco años: se continuará en ventanas de catorce días hasta completar julio de 2024 y luego se detendrá el backfill para realizar una auditoría acumulada y comparar modelos con 12, 18 y 24 meses de historia.
