@@ -161,7 +161,7 @@ Comparar pronósticos, ajustar seguridad y cobertura, modelar estacionalidad y e
 
 ## Estado
 
-Proyecto en etapa de construcción de la base de datos e integración. La ingesta diaria v2 de ventas quedó activa el 23 de julio de 2026. El stock se captura en un workflow independiente todos los días a las 03:00 ART y el reporte Excel conserva su flujo operativo separado a las 05:00 ART. Esta separación evita que el procesamiento del reporte afecte la persistencia utilizada por el sistema de reposición. Al 30 de julio de 2026 el histórico continuo de ventas está validado desde el 8 de agosto de 2025 hasta la actualidad; Supabase fue ampliado al plan Pro para continuar la expansión. El backfill manual permanece inactivo y la expansión histórica está pausada. La próxima ventana pendiente es del 25 de julio al 7 de agosto de 2025.
+Proyecto en etapa de construcción de la base de datos e integración. La ingesta diaria v2 de ventas quedó activa el 23 de julio de 2026. El stock se captura en un workflow independiente todos los días a las 03:00 ART y el reporte Excel conserva su flujo operativo separado a las 05:00 ART. Esta separación evita que el procesamiento del reporte afecte la persistencia utilizada por el sistema de reposición. Al cierre del 31 de julio de 2026 el histórico continuo de ventas está validado desde el 24 de enero de 2025 hasta la actualidad mediante la ejecución `1949`. La próxima ventana pendiente, todavía sin configurar, es del 10 al 23 de enero de 2025. El backfill continuará hasta completar julio de 2024 y se detendrá allí, con una cobertura objetivo aproximada de 24 meses.
 
 - Fuentes, resultados de auditoría y pendientes: [`docs/ESTADO_DATOS.md`](docs/ESTADO_DATOS.md).
 - Revisión del workflow vigente: [`docs/REVISION_WORKFLOW_VENTAS.md`](docs/REVISION_WORKFLOW_VENTAS.md).
@@ -173,5 +173,5 @@ Proyecto en etapa de construcción de la base de datos e integración. La ingest
 - Resolución de problemas de stock: [`docs/TROUBLESHOOTING_STOCK_SUPABASE.md`](docs/TROUBLESHOOTING_STOCK_SUPABASE.md).
 - Migración del proyecto Estado de Resultados: [`docs/MIGRACION_DASH_ESTADOS_RESULTADOS.md`](docs/MIGRACION_DASH_ESTADOS_RESULTADOS.md).
 - Inventario local de manuales de la API pública de Centum: [`docs/references/centum-api/`](docs/references/centum-api/).
-- Plan de backfill de ventas hasta cinco años: [`docs/PLAN_BACKFILL_VENTAS_5_ANIOS.md`](docs/PLAN_BACKFILL_VENTAS_5_ANIOS.md).
+- Plan de backfill de ventas hasta julio de 2024: [`docs/PLAN_BACKFILL_VENTAS_5_ANIOS.md`](docs/PLAN_BACKFILL_VENTAS_5_ANIOS.md).
 

@@ -35,3 +35,9 @@ Reemplazar el módulo In-Season de Analyticalways (proyección de demanda + suge
 - No tocar ni rehacer código fuera del alcance específico pedido en cada sesión.
 - No generar documentación/deliverables hasta validar cada etapa con datos reales de Centum.
 - Priorizar prueba en producción con datos reales sobre staging extendido.
+
+## Acceso operativo a n8n
+- Antes de concluir que n8n no está accesible, revisar `env.download`: allí están configuradas `N8N_BASE_URL` y `N8N_API_KEY`.
+- Para consultar o actualizar workflows, usar primero la API de n8n con esas variables; no pedir login mientras esa API responda autenticada.
+- No mostrar, copiar ni registrar el valor de `N8N_API_KEY` en respuestas, comandos visibles, documentación o commits.
+- Modificar únicamente el workflow y los campos autorizados, verificar el resultado con una lectura posterior y no ejecutar el workflow salvo pedido explícito.

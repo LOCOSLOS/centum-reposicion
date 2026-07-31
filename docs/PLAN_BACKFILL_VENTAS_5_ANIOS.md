@@ -1,10 +1,10 @@
-# Plan de backfill de ventas — hasta cinco años
+# Plan de backfill de ventas — hasta julio de 2024
 
 ## Objetivo
 
-Extender gradualmente el histórico canónico de ventas desde el 24 de mayo de 2026 hacia atrás, con un objetivo provisional de cinco años de cobertura para forecasting, estacionalidad y evaluación histórica del sistema de reposición.
+Extender gradualmente el histórico canónico de ventas hasta alcanzar cobertura continua desde julio de 2024 hasta la actualidad. Este alcance aporta aproximadamente 24 meses de información, suficientes para comparar dos ciclos estacionales y evaluar el forecasting inicial.
 
-El objetivo temporal inicial es alcanzar el 24 de julio de 2021. La profundidad definitiva depende de la disponibilidad, calidad y rendimiento de la API de Centum.
+El 31 de julio de 2026 se descartó el objetivo provisional de cinco años. El backfill debe detenerse al completar julio de 2024; no se cargarán períodos anteriores salvo que una evaluación posterior demuestre una mejora medible que lo justifique.
 
 ## Workflow
 
@@ -36,12 +36,12 @@ Después de esta primera prueba se validaron también las ejecuciones `1842`, `1
 1. Ejecutar y validar del 18 al 24 de mayo de 2026. **Completado.**
 2. Repetir la misma ventana para confirmar idempotencia solo si aparecen diferencias inesperadas.
 3. Completar y validar del 1 al 17 de mayo de 2026. **Completado.**
-4. Continuar hacia atrás en ventanas semanales. **En curso; validado hasta el 17 de abril de 2026.**
-5. Detenerse al completar 12 meses y realizar una auditoría acumulada.
-6. Continuar hasta 24 meses y volver a evaluar calidad y utilidad.
-7. Extender hasta cinco años si Centum mantiene cobertura y tiempos aceptables.
+4. Continuar hacia atrás en ventanas controladas. **En curso.**
+5. Completar la cobertura continua hasta incluir todo julio de 2024.
+6. Detener el backfill y realizar una auditoría acumulada de los aproximadamente 24 meses cargados.
+7. Comparar modelos con ventanas de 12, 18 y 24 meses antes de decidir cualquier ampliación futura.
 
-No se deben preparar múltiples ejecuciones simultáneas. La fecha de la siguiente ventana solo se modifica después de validar la anterior. Al 30 de julio de 2026 la cobertura continua validada llega hasta el 8 de agosto de 2025. La expansión quedó pausada después de validar la ejecución `1921`; la próxima ventana pendiente es del 25 de julio al 7 de agosto de 2025 y todavía no está configurada en el workflow.
+No se deben preparar múltiples ejecuciones simultáneas. La fecha de la siguiente ventana solo se modifica después de validar la anterior. Al cierre del 31 de julio de 2026 la cobertura continua validada llega hasta el 24 de enero de 2025 mediante la ejecución `1949`. La próxima ventana pendiente es del 10 al 23 de enero de 2025 y todavía no está configurada. El límite final acordado es completar julio de 2024 y detenerse allí.
 
 ## Criterios por ventana
 
