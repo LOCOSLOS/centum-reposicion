@@ -41,7 +41,7 @@ Después de esta primera prueba se validaron también las ejecuciones `1842`, `1
 6. Detener el backfill y realizar una auditoría acumulada de los aproximadamente 24 meses cargados.
 7. Comparar modelos con ventanas de 12, 18 y 24 meses antes de decidir cualquier ampliación futura.
 
-No se deben preparar múltiples ejecuciones simultáneas. La fecha de la siguiente ventana solo se modifica después de validar la anterior. Al cierre del 31 de julio de 2026 la cobertura continua validada llega hasta el 24 de enero de 2025 mediante la ejecución `1949`. La próxima ventana pendiente es del 10 al 23 de enero de 2025 y todavía no está configurada. El límite final acordado es completar julio de 2024 y detenerse allí.
+No se deben preparar múltiples ejecuciones simultáneas. La fecha de la siguiente ventana solo se modifica después de validar la anterior. Al 1 de agosto de 2026 la cobertura continua validada llega hasta el 27 de diciembre de 2024 mediante la ejecución `1957`. La próxima ventana pendiente es del 13 al 26 de diciembre de 2024 y todavía no está configurada. El límite final acordado es completar julio de 2024 y detenerse allí.
 
 ## Criterios por ventana
 

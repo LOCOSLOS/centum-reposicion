@@ -16,7 +16,7 @@
                   },
                   {
                       "parameters":  {
-                                         "jsCode":  "return [{\n  json: {\n    idEjecucion: String($execution.id),\n    fechaDesde: \u00272025-01-24\u0027,\n    fechaHasta: \u00272025-02-06\u0027,\n    lotesEsperados: 26\n  }\n}];"
+                                         "jsCode":  "return [{\n  json: {\n    idEjecucion: String($execution.id),\n    fechaDesde: \u00272024-12-27\u0027,\n    fechaHasta: \u00272025-01-09\u0027,\n    lotesEsperados: 26\n  }\n}];"
                                      },
                       "id":  "58e8ebd9-dc0f-490f-96ef-33dcd7b705b3",
                       "name":  "Inicializa Ejecucion",
@@ -117,73 +117,7 @@
                                                                                      "id":  "ctx003",
                                                                                      "name":  "fechaDesde",
                                                                                      "value":  "={{ $(\u0027Loop Over Items\u0027).item.json.fechaDesde }}",
-                                                                                     "type":  "string"
-                                                                                 },
-                                                                                 {
-                                                                                     "id":  "ctx004",
-                                                                                     "name":  "fechaHasta",
-                                                                                     "value":  "={{ $(\u0027Loop Over Items\u0027).item.json.fechaHasta }}",
-                                                                                     "type":  "string"
-                                                                                 },
-                                                                                 {
-                                                                                     "id":  "ctx005",
-                                                                                     "name":  "idSucursal",
-                                                                                     "value":  "={{ $(\u0027Loop Over Items\u0027).item.json.idSucursal }}",
-                                                                                     "type":  "number"
-                                                                                 },
-                                                                                 {
-                                                                                     "id":  "ctx006",
-                                                                                     "name":  "sucursalNombre",
-                                                                                     "value":  "={{ $(\u0027Loop Over Items\u0027).item.json.sucursalNombre }}",
-                                                                                     "type":  "string"
-                                                                                 },
-                                                                                 {
-                                                                                     "id":  "ctx007",
-                                                                                     "name":  "idDivision",
-                                                                                     "value":  "={{ $(\u0027Loop Over Items\u0027).item.json.idDivision }}",
-                                                                                     "type":  "number"
-                                                                                 }
-                                                                             ]
-                                                         },
-                                         "options":  {
-
-                                                     }
-                                     },
-                      "id":  "7d4ebec6-790b-45d1-9aea-b98b8f87270d",
-                      "name":  "Normaliza Contexto",
-                      "type":  "n8n-nodes-base.set",
-                      "typeVersion":  3.4,
-                      "position":  [
-                                       224,
-                                       224
-                                   ]
-                  },
-                  {
-                      "parameters":  {
-                                         "method":  "POST",
-                                         "url":  "https://plataforma5.centum.com.ar:23990/BL6/Ventas/FiltrosVentaConsulta/",
-                                         "sendHeaders":  true,
-                                         "headerParameters":  {
-                                                                  "parameters":  [
-                                                                                     {
-                                                                                         "name":  "Accept",
-                                                                                         "value":  "application/json"
-                                                                                     },
-                                                                                     {
-                                                                                         "name":  "Content-Type",
-                                                                                         "value":  "application/json"
-                                                                                     },
-                                                                                     {
-                                                                                         "name":  "CentumSuiteConsumidorApiPublicaId",
-                                                                                         "value":  "7"
-                                                                                     },
-                                                                                     {
-                                                                                         "name":  "CentumSuiteAccessToken",
-                                                                                         "value":  "={{ $json.CentumSuiteAccessToken }}"
-                                                                                     }
-                                                                                 ]
-                                                              },
-                                         "sendBody":  true,
+                                        -}Ó«h‘éì¶»§q«^t                                       "sendBody":  true,
                                          "specifyBody":  "json",
                                          "jsonBody":  "={{ JSON.stringify({ FechaDocumentoDesde: $json.fechaDesde, FechaDocumentoHasta: $json.fechaHasta, IdSucursal: $json.idSucursal, IdDivisionEmpresaGrupoEconomico: $json.idDivision }) }}",
                                          "options":  {
