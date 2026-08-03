@@ -291,3 +291,29 @@ El objetivo acordado ya no es alcanzar cinco años: se continuará en ventanas d
 Ambas ejecuciones finalizaron en estado `completada`, sin errores, con cero registros fuera de rango y cero líneas sin fecha, artículo o sucursal. El control de cobertura confirmó las 26 combinaciones esperadas; durante la ejecución `1956` se observó transitoriamente cobertura parcial porque la consulta se realizó antes de finalizar los 26 lotes.
 
 La cobertura continua validada alcanza desde el 27 de diciembre de 2024 hasta la actualidad. El workflow manual permanece inactivo y conserva la última ventana ejecutada (`2024-12-27` a `2025-01-09`). La próxima ventana pendiente, todavía sin configurar, es `2024-12-13` a `2024-12-26`.
+
+### Cierre del backfill histórico — 3 de agosto de 2026
+
+El 3 de agosto de 2026 se completó el objetivo acordado de disponer de histórico continuo desde julio de 2024 hasta la actualidad. Todas las ventanas del día finalizaron en estado `completada`, con 26 de 26 lotes procesados y sin errores:
+
+| Ejecución | Ventana | Lotes | Comprobantes | Líneas | Resultado |
+|---|---|---:|---:|---:|---|
+| `1984` | 2024-12-13 a 2024-12-26 | 26/26 | 13.290 | 33.096 | Validada |
+| `1985` | 2024-11-29 a 2024-12-12 | 26/26 | 8.730 | 21.267 | Validada |
+| `1986` | 2024-11-15 a 2024-11-28 | 26/26 | 7.029 | 16.888 | Validada |
+| `1987` | 2024-11-01 a 2024-11-14 | 26/26 | 7.527 | 17.337 | Validada |
+| `1988` | 2024-10-18 a 2024-10-31 | 26/26 | 8.642 | 20.650 | Validada |
+| `1989` | 2024-10-04 a 2024-10-17 | 26/26 | 6.363 | 16.499 | Validada |
+| `1990` | 2024-09-20 a 2024-10-03 | 26/26 | 6.083 | 15.114 | Validada |
+| `1991` | 2024-09-06 a 2024-09-19 | 26/26 | 5.727 | 13.952 | Validada |
+| `1992` | 2024-08-23 a 2024-09-05 | 26/26 | 4.192 | 9.858 | Validada |
+| `1993` | 2024-08-09 a 2024-08-22 | 26/26 | 4.218 | 10.401 | Validada |
+| `1995` | 2024-07-26 a 2024-08-08 | 26/26 | 4.196 | 9.256 | Validada |
+| `1996` | 2024-07-12 a 2024-07-25 | 26/26 | 5.227 | 12.129 | Validada |
+| `1997` | 2024-07-01 a 2024-07-11 | 26/26 | 5.264 | 12.831 | Validada |
+
+La cobertura continua validada alcanza desde el 1 de julio de 2024 hasta la actualidad, aproximadamente 25 meses. No hay una próxima ventana pendiente y no se cargarán períodos anteriores dentro de esta etapa.
+
+En varias ejecuciones la vista manual de n8n permaneció visualmente procesando después de que Supabase había confirmado la finalización. La fuente de verdad operativa fue la cabecera `centum_sync.carga_ejecuciones_v2` junto con los 26 lotes de `centum_sync.ventas_lotes_v2`; no se hicieron reejecuciones innecesarias.
+
+El workflow manual permanece inactivo y conserva la última ventana ejecutada (`2024-07-01` a `2024-07-11`). El objetivo de carga histórica queda **COMPLETADO**. Los próximos trabajos son la auditoría acumulada y la comparación de modelos con ventanas de 12, 18 y 24 meses.
