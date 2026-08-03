@@ -16,7 +16,7 @@
                   },
                   {
                       "parameters":  {
-                                         "jsCode":  "return [{\n  json: {\n    idEjecucion: String($execution.id),\n    fechaDesde: \u00272024-12-27\u0027,\n    fechaHasta: \u00272025-01-09\u0027,\n    lotesEsperados: 26\n  }\n}];"
+                                         "jsCode":  "return [{\n  json: {\n    idEjecucion: String($execution.id),\n    fechaDesde: \u00272024-07-01\u0027,\n    fechaHasta: \u00272024-07-11\u0027,\n    lotesEsperados: 26\n  }\n}];"
                                      },
                       "id":  "58e8ebd9-dc0f-490f-96ef-33dcd7b705b3",
                       "name":  "Inicializa Ejecucion",

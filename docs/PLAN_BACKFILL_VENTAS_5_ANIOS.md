@@ -36,12 +36,12 @@ Después de esta primera prueba se validaron también las ejecuciones `1842`, `1
 1. Ejecutar y validar del 18 al 24 de mayo de 2026. **Completado.**
 2. Repetir la misma ventana para confirmar idempotencia solo si aparecen diferencias inesperadas.
 3. Completar y validar del 1 al 17 de mayo de 2026. **Completado.**
-4. Continuar hacia atrás en ventanas controladas. **En curso.**
-5. Completar la cobertura continua hasta incluir todo julio de 2024.
-6. Detener el backfill y realizar una auditoría acumulada de los aproximadamente 24 meses cargados.
-7. Comparar modelos con ventanas de 12, 18 y 24 meses antes de decidir cualquier ampliación futura.
+4. Continuar hacia atrás en ventanas controladas. **Completado.**
+5. Completar la cobertura continua hasta incluir todo julio de 2024. **Completado.**
+6. Detener el backfill. **Completado.** Realizar una auditoría acumulada como siguiente tarea.
+7. Comparar modelos con ventanas de 12, 18 y 24 meses antes de decidir cualquier ampliación futura. **Pendiente; fuera del objetivo de carga histórica.**
 
-No se deben preparar múltiples ejecuciones simultáneas. La fecha de la siguiente ventana solo se modifica después de validar la anterior. Al 1 de agosto de 2026 la cobertura continua validada llega hasta el 27 de diciembre de 2024 mediante la ejecución `1957`. La próxima ventana pendiente es del 13 al 26 de diciembre de 2024 y todavía no está configurada. El límite final acordado es completar julio de 2024 y detenerse allí.
+No se deben preparar múltiples ejecuciones simultáneas. La fecha de la siguiente ventana solo se modifica después de validar la anterior. Al 3 de agosto de 2026 la cobertura continua validada alcanza desde el 1 de julio de 2024 hasta la actualidad mediante la ejecución final `1997`. No hay una próxima ventana pendiente. El límite acordado fue alcanzado y el backfill histórico queda **COMPLETADO**.
 
 ## Criterios por ventana
 
