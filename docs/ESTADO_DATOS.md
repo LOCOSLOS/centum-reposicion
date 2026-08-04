@@ -1,6 +1,10 @@
 # Estado de datos
 
-Última actualización: 22 de julio de 2026.
+Última actualización: 4 de agosto de 2026.
+
+La validación del piloto de forecasting, la lectura de órdenes de traspaso,
+la continuidad del stock diario y los próximos pasos están consolidados en
+[`AVANCE_2026-08-04.md`](AVANCE_2026-08-04.md).
 
 Este documento registra únicamente hechos confirmados, decisiones de trabajo y validaciones pendientes. No debe contener credenciales, respuestas completas de producción ni información comercial sensible.
 

@@ -174,4 +174,5 @@ Proyecto en etapa de construcción de la base de datos e integración. La ingest
 - Migración del proyecto Estado de Resultados: [`docs/MIGRACION_DASH_ESTADOS_RESULTADOS.md`](docs/MIGRACION_DASH_ESTADOS_RESULTADOS.md).
 - Inventario local de manuales de la API pública de Centum: [`docs/references/centum-api/`](docs/references/centum-api/).
 - Plan de backfill de ventas hasta julio de 2024: [`docs/PLAN_BACKFILL_VENTAS_5_ANIOS.md`](docs/PLAN_BACKFILL_VENTAS_5_ANIOS.md).
+- Avance de forecasting, traspasos y stock del 4 de agosto de 2026: [`docs/AVANCE_2026-08-04.md`](docs/AVANCE_2026-08-04.md).
 

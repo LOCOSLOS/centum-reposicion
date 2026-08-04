@@ -3,6 +3,11 @@
 .env.*
 env.download
 
+# Python local
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
 # Respaldos y exportaciones operativas de n8n
 n8n/workflows/*_pre_*.json
 n8n/workflows/Backfill_Ventas_v2_*.json
