@@ -1,0 +1,546 @@
+{
+  "name": "ODT - Despachos Drive - Lectura y Validaci√≥n (MANUAL)",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "7a6b73a4-6aad-447a-9b5c-82f22696bfa1",
+      "name": "Inicio manual",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Dos reportes de Google Drive\n\nSe buscan por nombre exacto en carpetas fijas. El ID del archivo puede cambiar cada d√É¬≠a. Vigencia m√É¬°xima: **30 horas**.",
+        "height": 190,
+        "width": 1050,
+        "color": 5
+      },
+      "id": "8485218f-639e-4ac7-84f9-da348379fac2",
+      "name": "Nota - Configuracion Drive",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        208,
+        -160
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{json:{\n  estado_configuracion:'CONFIGURADO_PENDIENTE_PRUEBA',\n  antiguedad_max_horas:30,\n  stock_transito:{tipo_reporte:'stock_en_transito',carpeta_drive_id:'1l-nxxpsH3J0MGqx4BHP-iH2KQZTn3UV7',nombre_archivo:'OT Stock en Transito V2.csv',columnas_requeridas:['FechaDocumento','NumeroDocumento','SucursalDesdeNombre','SucursalHaciaNombre','Clave','Nombre','CantidadValidacionDespacho','CantidadValidacionRecepcion']},\n  odt_efectivas:{tipo_reporte:'odt_efectivas_35_dias',carpeta_drive_id:'10KxeiQHINzD0IPEaFV5Hm8F4xhfO2Jcd',nombre_archivo:'ODTEfectivas35Dias.csv',columnas_requeridas:['NumeroDocumento','FechaDocumento','SucursalDesdeNombre','SucursalHaciaNombre','Clave','Nombre','CantidadValidacionRecepcion']}\n}}];"
+      },
+      "id": "2b6af850-1c5c-4ccc-8caa-9c22dc169e22",
+      "name": "Configuracion",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "fileFolder",
+        "queryString": "={{ $('Configuracion').first().json.stock_transito.nombre_archivo }}",
+        "returnAll": true,
+        "filter": {
+          "folderId": {
+            "__rl": true,
+            "value": "={{ $('Configuracion').first().json.stock_transito.carpeta_drive_id }}",
+            "mode": "id"
+          },
+          "whatToSearch": "files"
+        },
+        "options": {
+          "fields": [
+            "*"
+          ]
+        }
+      },
+      "id": "f5caf623-66c1-47db-ad96-d01d75ea5783",
+      "name": "Buscar stock en transito",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        480,
+        112
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "87ef5M9tpGBPeOy3",
+          "name": "Google Drive account AA"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const cfg=$('Configuracion').first().json.stock_transito;\nconst candidatos=$input.all().map(i=>i.json).filter(a=>a&&a.id&&a.name===cfg.nombre_archivo);\nif(!candidatos.length)throw new Error(`No se encontro \"${cfg.nombre_archivo}\" en la carpeta configurada.`);\nif(candidatos.length>1)throw new Error(`Hay ${candidatos.length} archivos llamados \"${cfg.nombre_archivo}\"; debe existir uno solo.`);\nconst archivo=candidatos[0];if(!archivo.modifiedTime)throw new Error('Drive no devolvio modifiedTime.');\nconst modificado=new Date(archivo.modifiedTime);if(Number.isNaN(modificado.getTime()))throw new Error(`modifiedTime invalido: ${archivo.modifiedTime}`);\nconst horas=(Date.now()-modificado.getTime())/3600000;const max=$('Configuracion').first().json.antiguedad_max_horas;\nif(horas<-1)throw new Error('La fecha de modificacion esta en el futuro.');if(horas>max)throw new Error(`El archivo tiene ${horas.toFixed(1)} horas; supera el maximo de ${max}.`);\nreturn [{json:{...archivo,tipo_reporte:cfg.tipo_reporte,validacion_archivo:'OK',antiguedad_horas:Number(horas.toFixed(2)),nombre_esperado:cfg.nombre_archivo,carpeta_drive_id:cfg.carpeta_drive_id}}];"
+      },
+      "id": "81cccdb0-a5bb-49a4-890f-7b53c42f1b73",
+      "name": "Validar stock en transito",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "value": "={{ $json.id }}",
+          "mode": "id"
+        },
+        "options": {
+          "binaryPropertyName": "data"
+        }
+      },
+      "id": "6e83673b-5d47-4bad-bf5d-7b657bb04449",
+      "name": "Descargar stock en transito",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        960,
+        112
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "87ef5M9tpGBPeOy3",
+          "name": "Google Drive account AA"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "binaryToPropery",
+        "destinationKey": "csv_texto",
+        "options": {}
+      },
+      "id": "6056fd59-91e5-49f8-afb8-d108b635cb06",
+      "name": "Convertir stock a texto",
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        1200,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const MODO='STOCK';let texto=$input.first().json.csv_texto;if(typeof texto!=='string'||!texto.trim())throw new Error('El CSV esta vacio o no pudo convertirse a texto.');\nconst base64Compacto=texto.replace(/\\s/g,'');\nif(base64Compacto.length%4===0&&/^[A-Za-z0-9+/]+={0,2}$/.test(base64Compacto)){\n  const decodificado=Buffer.from(base64Compacto,'base64').toString('utf8');\n  if(decodificado.includes('NumeroDocumento'))texto=decodificado.replace(/^\\uFEFF/,'');\n}const cfg=$('Configuracion').first().json.stock_transito;const archivo=$('Validar stock en transito').first().json;\nconst norm=v=>String(v??'').replace(/^\\uFEFF/,'').trim().normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').replace(/[^a-zA-Z0-9]/g,'').toLowerCase();\nconst parse=(s,d)=>{const out=[];let row=[],field='',q=false;for(let i=0;i<s.length;i++){const c=s[i];if(c==='\"'){if(q&&s[i+1]==='\"'){field+='\"';i++;}else q=!q;}else if(c===d&&!q){row.push(field);field='';}else if((c==='\\n'||c==='\\r')&&!q){if(c==='\\r'&&s[i+1]==='\\n')i++;row.push(field);out.push(row);row=[];field='';}else field+=c;}if(field.length||row.length){row.push(field);out.push(row);}return out;};\nlet sel=null;for(const d of [';',',','\\t','|']){const rows=parse(texto,d);const h=rows.findIndex(r=>{const ns=r.map(norm);return cfg.columnas_requeridas.every(c=>ns.includes(norm(c)));});if(h>=0){sel={d,rows,h};break;}}\nif(!sel)throw new Error(`No se encontro una cabecera con: ${cfg.columnas_requeridas.join(', ')}.`);\nconst heads=sel.rows[sel.h].map((v,i)=>String(v??'').replace(/^\\uFEFF/,'').trim()||`columna_${i+1}`);const idx=Object.fromEntries(heads.map((h,i)=>[norm(h),i]));const val=(r,n)=>String(r[idx[norm(n)]]??'').trim();\nconst num=v=>{let s=String(v??'').trim().replace(/\\s/g,'');if(!s)return NaN;if(s.includes(',')&&s.includes('.'))s=s.lastIndexOf(',')>s.lastIndexOf('.')?s.replace(/\\./g,'').replace(',','.'):s.replace(/,/g,'');else if(s.includes(','))s=s.replace(',','.');return Number(s);};\nconst out=[];for(let i=sel.h+1;i<sel.rows.length;i++){const r=sel.rows[i];if(r.every(v=>!String(v??'').trim()))continue;const fecha=val(r,'FechaDocumento'),documento=val(r,'NumeroDocumento'),desde=val(r,'SucursalDesdeNombre'),hacia=val(r,'SucursalHaciaNombre'),clave=val(r,'Clave'),nombre=val(r,'Nombre');const recepcion=num(val(r,'CantidadValidacionRecepcion'));const despacho=MODO==='STOCK'?num(val(r,'CantidadValidacionDespacho')):null;const errores=[];\nif(!fecha)errores.push('FechaDocumento vacia');if(!documento)errores.push('NumeroDocumento vacio');if(!desde)errores.push('SucursalDesdeNombre vacia');if(!hacia)errores.push('SucursalHaciaNombre vacia');if(!clave)errores.push('Clave vacia');if(!nombre)errores.push('Nombre vacio');if(!Number.isFinite(recepcion))errores.push('CantidadValidacionRecepcion no numerica');else if(recepcion<0)errores.push('CantidadValidacionRecepcion negativa');if(MODO==='STOCK'){if(!Number.isFinite(despacho))errores.push('CantidadValidacionDespacho no numerica');else if(despacho<0)errores.push('CantidadValidacionDespacho negativa');if(Number.isFinite(despacho)&&Number.isFinite(recepcion)&&recepcion>despacho)errores.push('Recepcion mayor que despacho');}\nconst pendiente=MODO==='STOCK'&&Number.isFinite(despacho)&&Number.isFinite(recepcion)?Math.max(despacho-recepcion,0):null;let estado;if(MODO==='EFECTIVAS')estado=Number.isFinite(recepcion)&&recepcion>0?'RECEPCION_CONFIRMADA':'SIN_RECEPCION_CONFIRMADA';else if(!Number.isFinite(despacho)||!Number.isFinite(recepcion))estado='INVALIDA';else if(recepcion>despacho)estado='INCONSISTENCIA_RECEPCION_MAYOR';else if(despacho===0&&recepcion===0)estado='SIN_MOVIMIENTO';else if(pendiente===0)estado='RECIBIDA_COMPLETA';else if(recepcion>0)estado='RECEPCION_PARCIAL';else estado='EN_TRANSITO';\nout.push({json:{tipo_reporte:cfg.tipo_reporte,archivo_id:archivo.id,archivo_nombre:archivo.name,archivo_modificado_en:archivo.modifiedTime,fila_csv:i+1,fila_encabezado:sel.h+1,fecha_documento:fecha,numero_documento:documento,sucursal_desde_nombre:desde,sucursal_hacia_nombre:hacia,clave,nombre,clave_operativa:documento&&clave?`${documento}|${clave}`:null,cantidad_validacion_despacho:Number.isFinite(despacho)?despacho:null,cantidad_validacion_recepcion:Number.isFinite(recepcion)?recepcion:null,cantidad_pendiente_transito:pendiente,estado_linea:estado,valido:errores.length===0,errores}});}\nif(!out.length)throw new Error('El CSV no contiene registros.');return out;"
+      },
+      "id": "1d1e3b89-877f-402c-a144-c8b0757a93dd",
+      "name": "Analizar stock en transito",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1440,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const rs=$input.all().map(i=>i.json),ok=rs.filter(r=>r.valido),bad=rs.filter(r=>!r.valido),freq=new Map();for(const r of rs)if(r.clave_operativa)freq.set(r.clave_operativa,(freq.get(r.clave_operativa)||0)+1);const dup=[...freq].filter(([,n])=>n>1).map(([clave_operativa,cantidad])=>({clave_operativa,cantidad}));const docs=new Set(ok.map(r=>r.numero_documento));return [{json:{tipo_reporte:'stock_en_transito',estado:!bad.length&&!dup.length?'VALIDACION_OK':'VALIDACION_CON_ERRORES',registros_leidos:rs.length,registros_validos:ok.length,registros_invalidos:bad.length,documentos_leidos:docs.size,lineas_en_transito:ok.filter(r=>r.estado_linea==='EN_TRANSITO').length,lineas_recepcion_parcial:ok.filter(r=>r.estado_linea==='RECEPCION_PARCIAL').length,lineas_recibidas_completas:ok.filter(r=>r.estado_linea==='RECIBIDA_COMPLETA').length,unidades_despachadas:ok.reduce((t,r)=>t+r.cantidad_validacion_despacho,0),unidades_recibidas:ok.reduce((t,r)=>t+r.cantidad_validacion_recepcion,0),unidades_pendientes_transito:ok.reduce((t,r)=>t+r.cantidad_pendiente_transito,0),claves_duplicadas:dup.length,muestra_duplicadas:dup.slice(0,20),muestra_errores:bad.slice(0,20).map(r=>({fila:r.fila_csv,documento:r.numero_documento,clave:r.clave,errores:r.errores}))}}];"
+      },
+      "id": "f9338dce-a48c-4a74-8938-7ab08311506b",
+      "name": "Resumen stock en transito",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1680,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Persistencia historica\nDescarga, valida y cruza ambos CSV. Guarda snapshots idempotentes en Supabase por `NumeroDocumento + Clave`.\n\nEl workflow permanece manual e inactivo.",
+        "height": 190,
+        "width": 810,
+        "color": 4
+      },
+      "id": "cf36272b-7132-4088-9fc0-74a4a7059899",
+      "name": "Nota - Sin persistencia",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2160,
+        624
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "fileFolder",
+        "queryString": "={{ $('Configuracion').first().json.odt_efectivas.nombre_archivo }}",
+        "returnAll": true,
+        "filter": {
+          "folderId": {
+            "__rl": true,
+            "value": "={{ $('Configuracion').first().json.odt_efectivas.carpeta_drive_id }}",
+            "mode": "id"
+          },
+          "whatToSearch": "files"
+        },
+        "options": {
+          "fields": [
+            "*"
+          ]
+        }
+      },
+      "id": "c3e883fa-66cf-4c33-a801-92cf9b560421",
+      "name": "Buscar ODT efectivas",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        480,
+        512
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "87ef5M9tpGBPeOy3",
+          "name": "Google Drive account AA"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const cfg=$('Configuracion').first().json.odt_efectivas;\nconst candidatos=$input.all().map(i=>i.json).filter(a=>a&&a.id&&a.name===cfg.nombre_archivo);\nif(!candidatos.length)throw new Error(`No se encontro \"${cfg.nombre_archivo}\" en la carpeta configurada.`);\nif(candidatos.length>1)throw new Error(`Hay ${candidatos.length} archivos llamados \"${cfg.nombre_archivo}\"; debe existir uno solo.`);\nconst archivo=candidatos[0];if(!archivo.modifiedTime)throw new Error('Drive no devolvio modifiedTime.');\nconst modificado=new Date(archivo.modifiedTime);if(Number.isNaN(modificado.getTime()))throw new Error(`modifiedTime invalido: ${archivo.modifiedTime}`);\nconst horas=(Date.now()-modificado.getTime())/3600000;const max=$('Configuracion').first().json.antiguedad_max_horas;\nif(horas<-1)throw new Error('La fecha de modificacion esta en el futuro.');if(horas>max)throw new Error(`El archivo tiene ${horas.toFixed(1)} horas; supera el maximo de ${max}.`);\nreturn [{json:{...archivo,tipo_reporte:cfg.tipo_reporte,validacion_archivo:'OK',antiguedad_horas:Number(horas.toFixed(2)),nombre_esperado:cfg.nombre_archivo,carpeta_drive_id:cfg.carpeta_drive_id}}];"
+      },
+      "id": "ea90ec19-78d1-45eb-b27f-b74d55d947c8",
+      "name": "Validar ODT efectivas",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        512
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "value": "={{ $json.id }}",
+          "mode": "id"
+        },
+        "options": {
+          "binaryPropertyName": "data"
+        }
+      },
+      "id": "dd64f3df-5d2d-483b-afe6-9fa55c20eb18",
+      "name": "Descargar ODT efectivas",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        960,
+        512
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "87ef5M9tpGBPeOy3",
+          "name": "Google Drive account AA"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "binaryToPropery",
+   ﬂæ≠¢Gß≤⁄Óù∆≠y’ld='',q=false;for(let i=0;i<s.length;i++){const c=s[i];if(c==='\"'){if(q&&s[i+1]==='\"'){field+='\"';i++;}else q=!q;}else if(c===d&&!q){row.push(field);field='';}else if((c==='\\n'||c==='\\r')&&!q){if(c==='\\r'&&s[i+1]==='\\n')i++;row.push(field);out.push(row);row=[];field='';}else field+=c;}if(field.length||row.length){row.push(field);out.push(row);}return out;};\nlet sel=null;for(const d of [';',',','\\t','|']){const rows=parse(texto,d);const h=rows.findIndex(r=>{const ns=r.map(norm);return cfg.columnas_requeridas.every(c=>ns.includes(norm(c)));});if(h>=0){sel={d,rows,h};break;}}\nif(!sel)throw new Error(`No se encontro una cabecera con: ${cfg.columnas_requeridas.join(', ')}.`);\nconst heads=sel.rows[sel.h].map((v,i)=>String(v??'').replace(/^\\uFEFF/,'').trim()||`columna_${i+1}`);const idx=Object.fromEntries(heads.map((h,i)=>[norm(h),i]));const val=(r,n)=>String(r[idx[norm(n)]]??'').trim();\nconst num=v=>{let s=String(v??'').trim().replace(/\\s/g,'');if(!s)return NaN;if(s.includes(',')&&s.includes('.'))s=s.lastIndexOf(',')>s.lastIndexOf('.')?s.replace(/\\./g,'').replace(',','.'):s.replace(/,/g,'');else if(s.includes(','))s=s.replace(',','.');return Number(s);};\nconst out=[];for(let i=sel.h+1;i<sel.rows.length;i++){const r=sel.rows[i];if(r.every(v=>!String(v??'').trim()))continue;const fecha=val(r,'FechaDocumento'),documento=val(r,'NumeroDocumento'),desde=val(r,'SucursalDesdeNombre'),hacia=val(r,'SucursalHaciaNombre'),clave=val(r,'Clave'),nombre=val(r,'Nombre');const recepcion=num(val(r,'CantidadValidacionRecepcion'));const despacho=MODO==='STOCK'?num(val(r,'CantidadValidacionDespacho')):null;const errores=[];\nif(!fecha)errores.push('FechaDocumento vacia');if(!documento)errores.push('NumeroDocumento vacio');if(!desde)errores.push('SucursalDesdeNombre vacia');if(!hacia)errores.push('SucursalHaciaNombre vacia');if(!clave)errores.push('Clave vacia');if(!nombre)errores.push('Nombre vacio');if(!Number.isFinite(recepcion))errores.push('CantidadValidacionRecepcion no numerica');else if(recepcion<0)errores.push('CantidadValidacionRecepcion negativa');if(MODO==='STOCK'){if(!Number.isFinite(despacho))errores.push('CantidadValidacionDespacho no numerica');else if(despacho<0)errores.push('CantidadValidacionDespacho negativa');if(Number.isFinite(despacho)&&Number.isFinite(recepcion)&&recepcion>despacho)errores.push('Recepcion mayor que despacho');}\nconst pendiente=MODO==='STOCK'&&Number.isFinite(despacho)&&Number.isFinite(recepcion)?Math.max(despacho-recepcion,0):null;let estado;if(MODO==='EFECTIVAS')estado=Number.isFinite(recepcion)&&recepcion>0?'RECEPCION_CONFIRMADA':'SIN_RECEPCION_CONFIRMADA';else if(!Number.isFinite(despacho)||!Number.isFinite(recepcion))estado='INVALIDA';else if(recepcion>despacho)estado='INCONSISTENCIA_RECEPCION_MAYOR';else if(despacho===0&&recepcion===0)estado='SIN_MOVIMIENTO';else if(pendiente===0)estado='RECIBIDA_COMPLETA';else if(recepcion>0)estado='RECEPCION_PARCIAL';else estado='EN_TRANSITO';\nout.push({json:{tipo_reporte:cfg.tipo_reporte,archivo_id:archivo.id,archivo_nombre:archivo.name,archivo_modificado_en:archivo.modifiedTime,fila_csv:i+1,fila_encabezado:sel.h+1,fecha_documento:fecha,numero_documento:documento,sucursal_desde_nombre:desde,sucursal_hacia_nombre:hacia,clave,nombre,clave_operativa:documento&&clave?`${documento}|${clave}`:null,cantidad_validacion_despacho:Number.isFinite(despacho)?despacho:null,cantidad_validacion_recepcion:Number.isFinite(recepcion)?recepcion:null,cantidad_pendiente_transito:pendiente,estado_linea:estado,valido:errores.length===0,errores}});}\nif(!out.length)throw new Error('El CSV no contiene registros.');return out;"
+      },
+      "id": "2f9d3c21-f7fb-474c-86fa-1ec639347237",
+      "name": "Analizar ODT efectivas",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1440,
+        512
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const rs=$input.all().map(i=>i.json),ok=rs.filter(r=>r.valido),bad=rs.filter(r=>!r.valido),freq=new Map();for(const r of rs)if(r.clave_operativa)freq.set(r.clave_operativa,(freq.get(r.clave_operativa)||0)+1);const dup=[...freq].filter(([,n])=>n>1).map(([clave_operativa,cantidad])=>({clave_operativa,cantidad}));return [{json:{tipo_reporte:'odt_efectivas_35_dias',estado:!bad.length&&!dup.length?'VALIDACION_OK':'VALIDACION_CON_ERRORES',registros_leidos:rs.length,registros_validos:ok.length,registros_invalidos:bad.length,documentos_leidos:new Set(ok.map(r=>r.numero_documento)).size,lineas_recepcion_confirmada:ok.filter(r=>r.estado_linea==='RECEPCION_CONFIRMADA').length,lineas_sin_recepcion_confirmada:ok.filter(r=>r.estado_linea==='SIN_RECEPCION_CONFIRMADA').length,unidades_recepcion_confirmada:ok.reduce((t,r)=>t+r.cantidad_validacion_recepcion,0),claves_duplicadas:dup.length,muestra_duplicadas:dup.slice(0,20),muestra_errores:bad.slice(0,20).map(r=>({fila:r.fila_csv,documento:r.numero_documento,clave:r.clave,errores:r.errores}))}}];"
+      },
+      "id": "edd38b71-6cec-4ec2-8d1a-e205db626422",
+      "name": "Resumen ODT efectivas",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1680,
+        512
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "d7becdd4-04b7-47a3-80aa-bb2048ab2037",
+      "name": "Esperar ambos reportes",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1920,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const stock=$('Analizar stock en transito').all().map(i=>i.json);\nconst efectivas=$('Analizar ODT efectivas').all().map(i=>i.json);\nconst mapa=new Map();\nfor(const r of efectivas.filter(r=>r.valido)){\n  const anterior=mapa.get(r.clave_operativa);\n  if(!anterior||r.cantidad_validacion_recepcion>anterior.cantidad_validacion_recepcion)mapa.set(r.clave_operativa,r);\n}\nconst detalle=stock.filter(r=>r.valido).map(r=>{\n  const e=mapa.get(r.clave_operativa);\n  const recibidaEfectiva=e?e.cantidad_validacion_recepcion:null;\n  const recibidaControl=Math.max(r.cantidad_validacion_recepcion,recibidaEfectiva??0);\n  const pendiente=Math.max(r.cantidad_validacion_despacho-recibidaControl,0);\n  let estado;\n  if(!e)estado=r.cantidad_pendiente_transito>0?'PENDIENTE_SIN_EFECTIVA':'RECIBIDA_SIN_REGISTRO_EFECTIVA';\n  else if(!pendiente&&r.cantidad_pendiente_transito>0)estado='EFECTIVA_CONFIRMA_INGRESO';\n  else if(!pendiente)estado='RECEPCION_CONFIRMADA';\n  else if(recibidaControl>0)estado='RECEPCION_PARCIAL_CONFIRMADA';\n  else estado='PENDIENTE';\n  return {fecha_documento:r.fecha_documento,numero_documento:r.numero_documento,sucursal_desde_nombre:r.sucursal_desde_nombre,sucursal_hacia_nombre:r.sucursal_hacia_nombre,clave:r.clave,nombre:r.nombre,cantidad_despachada:r.cantidad_validacion_despacho,cantidad_recibida_stock:r.cantidad_validacion_recepcion,cantidad_recibida_efectiva:recibidaEfectiva,cantidad_pendiente_stock:r.cantidad_pendiente_transito,cantidad_pendiente_control:pendiente,encontrada_en_efectivas:Boolean(e),estado_control:estado};\n});\nconst st=$('Resumen stock en transito').first().json;\nconst ef=$('Resumen ODT efectivas').first().json;\nif(st.estado!=='VALIDACION_OK'||ef.estado!=='VALIDACION_OK')throw new Error('No se persisten reportes con errores de validacion.');\nconst cuenta=estado=>detalle.filter(r=>r.estado_control===estado).length;\nconst resumenControl={estado:'CONTROL_ODT_OK',criterio_cruce:'NumeroDocumento + Clave',lineas_controladas:detalle.length,lineas_encontradas_en_efectivas:detalle.filter(r=>r.encontrada_en_efectivas).length,lineas_pendientes_sin_efectiva:cuenta('PENDIENTE_SIN_EFECTIVA'),lineas_efectiva_confirma_ingreso:cuenta('EFECTIVA_CONFIRMA_INGRESO'),lineas_recepcion_confirmada:cuenta('RECEPCION_CONFIRMADA'),unidades_pendientes_segun_stock:detalle.reduce((t,r)=>t+r.cantidad_pendiente_stock,0),unidades_pendientes_segun_control:detalle.reduce((t,r)=>t+r.cantidad_pendiente_control,0),resumen_stock_transito:st,resumen_odt_efectivas:ef,detalle_control:detalle};\nconst sqlTexto=valor=>\"'\" + String(valor).replace(/'/g,\"''\") + \"'\";\nconst sqlJson=valor=>\"'\" + JSON.stringify(valor).replace(/'/g,\"''\") + \"'::jsonb\";\nconst idEjecucion=String($execution.id);\nconst observadoEn=new Date().toISOString();\nconst reportes=[\n  {tipo:'stock_en_transito',resumen:st,lineas:stock,archivo:$('Validar stock en transito').first().json},\n  {tipo:'odt_efectivas_35_dias',resumen:ef,lineas:efectivas,archivo:$('Validar ODT efectivas').first().json}\n];\nreturn reportes.map((reporte,indice)=>{\n  const archivo={id:reporte.archivo.id,nombre:reporte.archivo.name,modificado_en:reporte.archivo.modifiedTime};\n  const query='select * from centum_sync.ingestar_snapshot_odt('+sqlTexto(idEjecucion)+', '+sqlTexto(observadoEn)+'::timestamptz, '+sqlTexto(reporte.tipo)+', '+sqlJson(archivo)+', '+sqlJson(reporte.resumen)+', '+sqlJson(reporte.lineas)+');';\n  return {json:{query,id_ejecucion:idEjecucion,tipo_reporte:reporte.tipo,observado_en:observadoEn,registros_preparados:reporte.lineas.length,resumen_control:indice===0?resumenControl:null}};\n});"
+      },
+      "id": "3b79382d-fe97-4e46-8d7b-be5f8d7d6454",
+      "name": "Cruzar y resumir ODT",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2160,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "  {{ $json.query }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2672,
+        416
+      ],
+      "id": "a7c198cd-57f0-44c9-9d43-896ca1461972",
+      "name": "Execute a SQL query",
+      "credentials": {
+        "postgres": {
+          "id": "EHXOTkKVgCHfYUZu",
+          "name": "Postgres account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const reportes=$input.all().map(i=>i.json);\nconst tipos=new Set(reportes.map(r=>r.tipo_reporte));\nconst completada=reportes.length===2\n  && tipos.has('stock_en_transito')\n  && tipos.has('odt_efectivas_35_dias')\n  && reportes.some(r=>r.ejecucion_completada===true||r.ejecucion_completada==='true');\nif(!completada)throw new Error('La ejecucion ODT no completo la persistencia de los dos reportes.');\nconst resumen=$('Cruzar y resumir ODT').first().json.resumen_control;\nreturn [{json:{...resumen,estado:'CONTROL_ODT_OK',persistencia:{estado:'COMPLETADA',id_ejecucion:String($execution.id),reportes:reportes.map(r=>({id_importacion:r.id_importacion,tipo_reporte:r.tipo_reporte,importacion_nueva:r.importacion_nueva,registros_persistidos:r.registros_persistidos,documentos_persistidos:r.documentos_persistidos,reportes_procesados:r.reportes_procesados,ejecucion_completada:r.ejecucion_completada}))}}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2880,
+        416
+      ],
+      "id": "46801863-1730-422a-ba5b-e5e3f08cf766",
+      "name": "Code in JavaScript"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Inicio manual": {
+      "main": [
+        [
+          {
+            "node": "Configuracion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Configuracion": {
+      "main": [
+        [
+          {
+            "node": "Buscar stock en transito",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Buscar ODT efectivas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar stock en transito": {
+      "main": [
+        [
+          {
+            "node": "Validar stock en transito",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validar stock en transito": {
+      "main": [
+        [
+          {
+            "node": "Descargar stock en transito",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Descargar stock en transito": {
+      "main": [
+        [
+          {
+            "node": "Convertir stock a texto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Convertir stock a texto": {
+      "main": [
+        [
+          {
+            "node": "Analizar stock en transito",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analizar stock en transito": {
+      "main": [
+        [
+          {
+            "node": "Resumen stock en transito",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resumen stock en transito": {
+      "main": [
+        [
+          {
+            "node": "Esperar ambos reportes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar ODT efectivas": {
+      "main": [
+        [
+          {
+            "node": "Validar ODT efectivas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validar ODT efectivas": {
+      "main": [
+        [
+          {
+            "node": "Descargar ODT efectivas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Descargar ODT efectivas": {
+      "main": [
+        [
+          {
+            "node": "Convertir efectivas a texto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Convertir efectivas a texto": {
+      "main": [
+        [
+          {
+            "node": "Analizar ODT efectivas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analizar ODT efectivas": {
+      "main": [
+        [
+          {
+            "node": "Resumen ODT efectivas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resumen ODT efectivas": {
+      "main": [
+        [
+          {
+            "node": "Esperar ambos reportes",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Esperar ambos reportes": {
+      "main": [
+        [
+          {
+            "node": "Cruzar y resumir ODT",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cruzar y resumir ODT": {
+      "main": [
+        [
+          {
+            "node": "Execute a SQL query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute a SQL query": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "25f6191c-a69d-4aaa-9188-bb43f1981fd8",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "c4a163fbd452fbe550da7790415371051e8e68d73ec4c759e2b7351fc1211634"
+  },
+  "nodeGroups": [],
+  "id": "4B0rMSpQjslHoulA",
+  "tags": []
+}

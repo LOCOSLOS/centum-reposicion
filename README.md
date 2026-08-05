@@ -161,7 +161,7 @@ Comparar pronósticos, ajustar seguridad y cobertura, modelar estacionalidad y e
 
 ## Estado
 
-Proyecto en etapa de construcción de la base de datos e integración. La ingesta diaria v2 de ventas quedó activa el 23 de julio de 2026. El stock se captura en un workflow independiente todos los días a las 03:00 ART y el reporte Excel conserva su flujo operativo separado a las 05:00 ART. Esta separación evita que el procesamiento del reporte afecte la persistencia utilizada por el sistema de reposición. Al 5 de agosto de 2026 el backfill histórico y su auditoría acumulada están **COMPLETADOS**: la cobertura continua validada alcanza desde el 1 de julio de 2024 hasta el 4 de agosto de 2026, con 765 de 765 días cubiertos, cero nulos críticos y cero líneas fuera de rango. No hay más ventanas pendientes ni se cargarán períodos anteriores en esta etapa. Los próximos pasos son persistir snapshots de órdenes de traspaso y continuar la validación del forecasting.
+Proyecto en etapa de construcción de la base de datos e integración. La ingesta diaria v2 de ventas quedó activa el 23 de julio de 2026. El stock se captura en un workflow independiente todos los días a las 03:00 ART y el reporte Excel conserva su flujo operativo separado a las 05:00 ART. Esta separación evita que el procesamiento del reporte afecte la persistencia utilizada por el sistema de reposición. Al 5 de agosto de 2026 el backfill histórico y su auditoría acumulada están **COMPLETADOS**: la cobertura continua validada alcanza desde el 1 de julio de 2024 hasta el 4 de agosto de 2026, con 765 de 765 días cubiertos, cero nulos críticos y cero líneas fuera de rango. También quedó **COMPLETADA** la persistencia idempotente de órdenes de traspaso: las ejecuciones `2033` y `2034` validaron la primera carga y su repetición sin duplicados. No hay más ventanas históricas pendientes ni se cargarán períodos anteriores en esta etapa. El próximo paso es continuar la validación del forecasting.
 
 - Fuentes, resultados de auditoría y pendientes: [`docs/ESTADO_DATOS.md`](docs/ESTADO_DATOS.md).
 - Revisión del workflow vigente: [`docs/REVISION_WORKFLOW_VENTAS.md`](docs/REVISION_WORKFLOW_VENTAS.md).
@@ -176,4 +176,5 @@ Proyecto en etapa de construcción de la base de datos e integración. La ingest
 - Plan de backfill de ventas hasta julio de 2024: [`docs/PLAN_BACKFILL_VENTAS_5_ANIOS.md`](docs/PLAN_BACKFILL_VENTAS_5_ANIOS.md).
 - Avance de forecasting, traspasos y stock del 4 de agosto de 2026: [`docs/AVANCE_2026-08-04.md`](docs/AVANCE_2026-08-04.md).
 - Cierre de la auditoría histórica de ventas del 5 de agosto de 2026: [`docs/AUDITORIA_HISTORICO_VENTAS_2026-08-05.md`](docs/AUDITORIA_HISTORICO_VENTAS_2026-08-05.md).
+- Implementación y prueba idempotente de órdenes de traspaso: [`docs/IMPLEMENTACION_ODT_SNAPSHOTS.md`](docs/IMPLEMENTACION_ODT_SNAPSHOTS.md).
 

@@ -200,7 +200,7 @@ max(CantidadValidacionDespacho - CantidadValidacionRecepcion, 0)
 
 Debe utilizarse la columna de detalle `CantidadValidacionDespacho`, sin sufijo. `CantidadValidacionDespacho1` representa un total repetido del documento y no debe sumarse por artículo.
 
-La importación deberá conservar:
+La persistencia implementada conserva:
 
 - identificación del documento o transferencia, si existe;
 - artículo o SKU;
@@ -211,6 +211,8 @@ La importación deberá conservar:
 - fecha e identificador de la importación.
 
 La muestra de despachos contenía seis filas informativas antes del encabezado real; la muestra de recepciones comenzaba directamente con la tabla. El proceso debe localizar los encabezados por nombre y no asumir una fila fija. La búsqueda en Drive debe realizarse diariamente por carpeta y nombre exacto, exigir un único resultado y validar la vigencia del archivo, porque el ID cambia en cada reemplazo.
+
+El 5 de agosto de 2026 se instaló la migración `004_odt_snapshots.sql` y se adaptó el workflow manual `4B0rMSpQjslHoulA`. La ejecución `2033` creó dos snapshots con 351 líneas de tránsito y 15.608 líneas de ODT efectivas. La repetición `2034` terminó `completada`, con cero importaciones nuevas y dos reutilizadas. Esto valida la idempotencia por contenido y habilita la reconstrucción de cambios de estado entre observaciones. El workflow permanece manual e inactivo. El detalle técnico está en [`IMPLEMENTACION_ODT_SNAPSHOTS.md`](IMPLEMENTACION_ODT_SNAPSHOTS.md).
 
 ## Auditoría de ejecuciones
 
