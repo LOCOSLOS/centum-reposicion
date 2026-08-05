@@ -1,10 +1,28 @@
 # Estado de datos
 
-Última actualización: 4 de agosto de 2026.
+Última actualización: 5 de agosto de 2026.
 
 La validación del piloto de forecasting, la lectura de órdenes de traspaso,
 la continuidad del stock diario y los próximos pasos están consolidados en
 [`AVANCE_2026-08-04.md`](AVANCE_2026-08-04.md).
+
+El cierre reproducible de la auditoría acumulada de ventas se encuentra en
+[`AUDITORIA_HISTORICO_VENTAS_2026-08-05.md`](AUDITORIA_HISTORICO_VENTAS_2026-08-05.md).
+
+## Cierre del histórico de ventas
+
+- Cobertura validada: 1 de julio de 2024 a 4 de agosto de 2026.
+- Días cubiertos: 765 de 765.
+- Ejecuciones 26/26 válidas: 75.
+- Líneas canónicas vigentes revisadas: 744.651.
+- Duplicados posibles por clave canónica: cero; la clave está protegida por PK.
+- Ítems sin cabecera posibles: cero; la relación está protegida por FK.
+- Campos críticos nulos o inválidos: cero.
+- Líneas fuera de la ventana autoritativa: cero.
+- Muestra profunda JSON contra tablas: 12 meses continuos y 910 lotes, sin diferencias.
+
+El único hueco detectado, correspondiente al 1 de agosto de 2026, fue reparado
+repitiendo exclusivamente ese día. No quedan ventanas de backfill pendientes.
 
 Este documento registra únicamente hechos confirmados, decisiones de trabajo y validaciones pendientes. No debe contener credenciales, respuestas completas de producción ni información comercial sensible.
 
@@ -209,13 +227,10 @@ Las cargas de artículos, ventas, existencias y tránsito deberán registrar com
 
 ## Próximos pasos
 
-1. Restaurar y verificar la configuración diaria del workflow v2, manteniéndolo inactivo.
-2. Identificar consumidores de `public.ventas_raw` y `public.ventas_items` y adaptar las vistas a la fuente v2.
-3. Ejecutar un backfill controlado por ventanas y reconciliar varios días antes del corte.
-4. Desactivar el workflow anterior y activar la v2 sin superponer sus horarios.
-5. Monitorear las primeras ejecuciones automáticas del workflow independiente de stock y validar sus 12 lotes en Supabase.
-6. Diseñar la importación idempotente de los dos CSV de tránsito usando la clave y cantidades ya validadas.
-7. Implementar la persistencia de tránsito cuando se apruebe la etapa correspondiente.
+1. Persistir snapshots diarios de órdenes de traspaso para reconstruir apertura, tránsito y recepción.
+2. Continuar validando el forecasting acumulado de cuatro semanas.
+3. Implementar el motor explicable de sugerencias de reposición con revisión humana.
+4. Construir la interfaz MVP de revisión y exportación después de validar las reglas con casos reales.
 
 La revisión técnica del flujo diario se encuentra en [`REVISION_WORKFLOW_VENTAS.md`](REVISION_WORKFLOW_VENTAS.md).
 
@@ -225,6 +240,9 @@ Scripts preparados:
 
 - `supabase/audits/001_auditoria_ventas.sql`: controles de cobertura, nulos, duplicados, relación cabecera-detalle, signos y conciliación de importes;
 - `supabase/audits/002_validacion_ventas_v2.sql`: comparación de v1/v2, detección de líneas repetidas legítimas y control de ejecuciones incompletas;
+- `supabase/audits/006_auditoria_acumulada_ventas_v2.sql`: cobertura acumulada, 26 combinaciones y conciliación de ejecuciones/lotes;
+- `supabase/audits/007_auditoria_json_ventas_v2_mensual.sql`: validación profunda por bloques entre respuestas JSON y tablas canónicas;
+- `supabase/audits/008_cierre_calidad_ventas_v2.sql`: cierre de nulos, restricciones, rangos, ventas y devoluciones;
 - `supabase/views/000_maestro_articulos_normalizado.sql`: normalización no destructiva de color y talle con estado de parseo;
 - `supabase/views/001_ventas_diarias.sql`: vistas provisionales de ventas diarias y ventanas móviles de 7, 28 y 56 días.
 - `supabase/views/002_calidad_ventas.sql`: resumen separado de ventas históricas sin sucursal recuperable.
