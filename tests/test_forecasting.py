@@ -16,7 +16,7 @@ from forecasting.baseline import (
     forecast_weekly,
 )
 from forecasting.io import _date, load_daily_sales_csv, write_forecasts_csv
-from forecasting.pilot import _backtest_horizon
+from forecasting.pilot import _backtest_horizon, _backtest_zero, evaluate
 
 
 MONDAY = date(2026, 7, 6)
@@ -192,6 +192,67 @@ class ForecastingBaselineTests(unittest.TestCase):
         self.assertEqual(metrics.observaciones, 5)
         self.assertEqual(metrics.demanda_real_total, 100)
         self.assertAlmostEqual(metrics.mae, 0)
+
+    def test_zero_control_uses_the_same_rolling_horizon(self) -> None:
+        weekly = {
+            MONDAY + timedelta(weeks=i): 5 for i in range(10)
+        }
+        metrics = _backtest_zero(
+            weekly,
+            holdout_weeks=4,
+            horizon_weeks=2,
+        )
+        self.assertEqual(metrics.observaciones, 3)
+        self.assertEqual(metrics.demanda_real_total, 30)
+        self.assertEqual(metrics.demanda_proyectada_total, 0)
+        self.assertAlmostEqual(metrics.wape or 0, 1)
+        self.assertAlmostEqual(metrics.sesgo_medio, -10)
+
+    def test_pilot_reports_zero_control_and_metrics_by_branch(self) -> None:
+        rows = []
+        for branch_id, branch_name in (
+            (6455, "Deposito central"),
+            (6458, "Salguero"),
+            (8774, "Boedo"),
+        ):
+            for week in range(10):
+                rows.append(
+                    {
+                        "fecha_comprobante": (
+                            MONDAY + timedelta(weeks=week)
+                        ).isoformat(),
+                        "id_sucursal": branch_id,
+                        "sucursal_nombre": branch_name,
+                        "id_articulo": 10,
+                        "sku": "SKU-10",
+                        "unidades_vendidas": 2,
+                        "patron_muestra": "regular",
+                    }
+                )
+        result = evaluate(
+            rows,
+            windows=(4,),
+            holdout_weeks=2,
+            horizon_weeks=2,
+        )
+        evaluation = result["evaluaciones"][0]
+        self.assertEqual(result["dataset"]["sucursales_excluidas"], [6455])
+        self.assertEqual(result["dataset"]["series_excluidas_sucursal"], 1)
+        self.assertEqual(result["dataset"]["series"], 2)
+        self.assertEqual(
+            evaluation["control_pronostico_cero"]["metricas_globales"]["wape"],
+            1,
+        )
+        self.assertEqual(
+            [
+                branch["sucursal_nombre"]
+                for branch in evaluation["metricas_por_sucursal"]
+            ],
+            ["Salguero", "Boedo"],
+        )
+        self.assertIn(
+            "control_pronostico_cero", evaluation["evaluacion_horizonte"]
+        )
 
     def test_csv_round_trip_uses_real_view_columns(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

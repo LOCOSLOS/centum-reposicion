@@ -1,0 +1,99 @@
+{
+  "name": "Forecasting - Dataset piloto semanal (MANUAL)",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "716832cc-f9f2-44b2-b77a-3f4598532a72",
+      "name": "Inicio manual",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "with ventas_semanales as (\n  select\n    date_trunc('week', fecha_comprobante)::date as semana,\n    id_sucursal,\n    max(sucursal_nombre) as sucursal_nombre,\n    id_articulo,\n    max(sku) as sku,\n    max(articulo_nombre) as articulo_nombre,\n    sum(unidades_vendidas)::numeric as unidades_vendidas,\n    sum(unidades_devueltas)::numeric as unidades_devueltas\n  from public.vw_ventas_diarias_articulo_sucursal\n  where fecha_comprobante >= current_date - interval '27 months'\n    and fecha_comprobante < date_trunc('week', current_date)::date\n    and id_sucursal <> 6455\n    and upper(trim(coalesce(sku, ''))) not like 'ENVIO%'\n  group by\n    date_trunc('week', fecha_comprobante)::date,\n    id_sucursal,\n    id_articulo\n),\nestadisticas as (\n  select\n    id_sucursal,\n    id_articulo,\n    min(semana) as primera_semana,\n    max(semana) as ultima_semana,\n    count(*) filter (where unidades_vendidas > 0) as semanas_con_venta,\n    (((date_trunc('week', current_date)::date - interval '1 week')::date - min(semana)) / 7 + 1)::integer as semanas_calendario,\n    sum(unidades_vendidas) as unidades_totales_periodo\n  from ventas_semanales\n  group by id_sucursal, id_articulo\n  having min(semana) <= date_trunc('week', current_date)::date - interval '52 weeks'\n),\nclasificadas as (\n  select\n    e.*,\n    case\n      when e.semanas_con_venta::numeric / nullif(e.semanas_calendario, 0) < 0.50\n        then 'intermitente'\n      else 'regular'\n    end as patron_muestra\n  from estadisticas e\n),\nranked as (\n  select\n    c.*,\n    row_number() over (\n      partition by c.patron_muestra\n      order by c.unidades_totales_periodo desc, c.id_sucursal, c.id_articulo\n    ) as posicion_patron\n  from clasificadas c\n),\nseleccionadas as (\n  select *\n  from ranked\n  where posicion_patron <= 50\n)\nselect\n  v.semana as fecha_comprobante,\n  ''::text as sociedad,\n  v.id_sucursal,\n  v.sucursal_nombre,\n  v.id_articulo,\n  v.sku,\n  v.articulo_nombre,\n  v.unidades_vendidas,\n  v.unidades_devueltas,\n  s.patron_muestra,\n  s.semanas_con_venta,\n  s.semanas_calendario,\n  s.unidades_totales_periodo\nfrom ventas_semanales v\njoin seleccionadas s using (id_sucursal, id_articulo)\norder by v.id_sucursal, v.id_articulo, v.semana;",
+        "options": {}
+      },
+      "id": "2a33b240-3d57-4c5c-a03a-b7f2d5a36904",
+      "name": "Postgres - Ventas semanales piloto",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        260,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "EHXOTkKVgCHfYUZu",
+          "name": "Postgres account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const filas=$input.all().map(item=>item.json);\nif(!filas.length)throw new Error('La consulta no devolvio filas para el piloto.');\nconst series=new Set(filas.map(r=>`${r.id_sucursal}|${r.id_articulo}`));\nconst regulares=new Set(filas.filter(r=>r.patron_muestra==='regular').map(r=>`${r.id_sucursal}|${r.id_articulo}`));\nconst intermitentes=new Set(filas.filter(r=>r.patron_muestra==='intermitente').map(r=>`${r.id_sucursal}|${r.id_articulo}`));\nconst fechas=filas.map(r=>String(r.fecha_comprobante)).sort();\nreturn [{json:{\n  estado:'DATASET_PILOTO_OK',\n  solo_lectura:true,\n  filas_semanales:filas.length,\n  series_articulo_sucursal:series.size,\n  series_regulares:regulares.size,\n  series_intermitentes:intermitentes.size,\n  fecha_minima:fechas[0],\n  fecha_maxima:fechas[fechas.length-1],\n  nodo_datos:'Postgres - Ventas semanales piloto',\n  siguiente_paso:'Procesar la salida del nodo de datos con el motor Python local.'\n}}];"
+      },
+      "id": "116678ec-191e-402e-a48f-6c6a5c399d04",
+      "name": "Resumen dataset piloto",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        540,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Dataset piloto de forecasting\n\nConsulta de **solo lectura** sobre ventas semanales. Selecciona hasta 50 series regulares y 50 intermitentes con al menos 52 semanas de historia.\n\n- Consulta hasta 27 meses disponibles.\n- Permite validar ventanas de 12 y 18 meses con control separado.\n- La ventana de 24 meses se informa como no validable mientras falten semanas anteriores.\n- Excluye los SKU de servicios que comienzan con Envio.\n- Excluye la semana actual incompleta.\n- No escribe en Supabase y no tiene horario automatico.\n- Excluye la sucursal 01 (6455), deposito central y canal mayorista.",
+        "height": 300,
+        "width": 520,
+        "color": 5
+      },
+      "id": "1718de0e-3d2f-46d0-bf80-a7634a136658",
+      "name": "Nota - Alcance del piloto",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -40,
+        -80
+      ]
+    }
+  ],
+  "connections": {
+    "Inicio manual": {
+      "main": [
+        [
+          {
+            "node": "Postgres - Ventas semanales piloto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres - Ventas semanales piloto": {
+      "main": [
+        [
+          {
+            "node": "Resumen dataset piloto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": null,
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "b2d3114a-0880-4468-8c70-660437bc6623",
+  "meta": null,
+  "id": "PZb95UdRFHdMybZ6",
+  "tags": []
+}

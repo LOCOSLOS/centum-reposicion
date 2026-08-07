@@ -12,7 +12,7 @@ import sys
 from collections import defaultdict
 from dataclasses import asdict
 from datetime import date, timedelta
-from typing import Iterable
+from typing import Iterable, Mapping
 
 from .baseline import (
     BacktestMetrics,
@@ -25,6 +25,9 @@ from .baseline import (
     week_start,
 )
 from .io import _date, _number
+
+
+DEFAULT_EXCLUDED_BRANCH_IDS = frozenset({6455})
 
 
 def _load_rows(payload: object) -> list[dict[str, object]]:
@@ -126,6 +129,38 @@ def _backtest_recent_mean(
     return _metrics_from_predictions(actuals, predictions)
 
 
+def _backtest_zero(
+    weekly: dict[date, float],
+    *,
+    holdout_weeks: int,
+    horizon_weeks: int = 1,
+) -> BacktestMetrics:
+    """Evalua el control ingenuo que siempre pronostica demanda cero."""
+
+    if horizon_weeks <= 0 or horizon_weeks > holdout_weeks:
+        raise ValueError("El horizonte debe estar entre 1 y holdout_weeks")
+    first = min(weekly)
+    last = max(weekly)
+    completed: dict[date, float] = {}
+    current = first
+    while current <= last:
+        completed[current] = weekly.get(current, 0.0)
+        current += timedelta(weeks=1)
+    first_origin = last - timedelta(weeks=holdout_weeks - 1)
+    last_origin = last - timedelta(weeks=horizon_weeks - 1)
+    actuals: list[float] = []
+    origin = first_origin
+    while origin <= last_origin:
+        actuals.append(
+            sum(
+                completed.get(origin + timedelta(weeks=offset), 0.0)
+                for offset in range(horizon_weeks)
+            )
+        )
+        origin += timedelta(weeks=1)
+    return _metrics_from_predictions(actuals, [0.0] * len(actuals))
+
+
 def _backtest_horizon(
     key: SeriesKey,
     weekly: dict[date, float],
@@ -177,6 +212,27 @@ def _backtest_horizon(
     return _metrics_from_predictions(actuals, predictions)
 
 
+def _aggregate_by_branch(
+    metrics: Mapping[SeriesKey, BacktestMetrics],
+    metadata: Mapping[SeriesKey, dict[str, object]],
+) -> list[dict[str, object]]:
+    grouped: dict[int, list[BacktestMetrics]] = defaultdict(list)
+    names: dict[int, str] = {}
+    for key, value in metrics.items():
+        grouped[key.id_sucursal].append(value)
+        names[key.id_sucursal] = str(
+            metadata.get(key, {}).get("sucursal_nombre", "") or ""
+        )
+    return [
+        {
+            "id_sucursal": branch_id,
+            "sucursal_nombre": names.get(branch_id, ""),
+            **_aggregate_metrics(grouped[branch_id]),
+        }
+        for branch_id in sorted(grouped)
+    ]
+
+
 def evaluate(
     rows: list[dict[str, object]],
     *,
@@ -184,13 +240,26 @@ def evaluate(
     holdout_weeks: int = 8,
     horizon_weeks: int = 4,
     config: BaselineConfig | None = None,
+    excluded_branch_ids: Iterable[int] = DEFAULT_EXCLUDED_BRANCH_IDS,
 ) -> dict[str, object]:
     cfg = config or BaselineConfig()
-    sales = [_daily_sale(row) for row in rows]
+    excluded = frozenset(int(value) for value in excluded_branch_ids)
+    retail_rows = [
+        row for row in rows if int(row["id_sucursal"]) not in excluded
+    ]
+    if not retail_rows:
+        raise ValueError("El dataset minorista esta vacio despues de las exclusiones")
+    excluded_rows = len(rows) - len(retail_rows)
+    excluded_series = {
+        (int(row["id_sucursal"]), int(row["id_articulo"]))
+        for row in rows
+        if int(row["id_sucursal"]) in excluded
+    }
+    sales = [_daily_sale(row) for row in retail_rows]
     weekly = aggregate_weekly(sales, config=cfg)
     patterns: dict[SeriesKey, str] = {}
     metadata: dict[SeriesKey, dict[str, object]] = {}
-    for row in rows:
+    for row in retail_rows:
         key = SeriesKey(int(row["id_sucursal"]), int(row["id_articulo"]))
         patterns[key] = str(row.get("patron_muestra", "sin_clasificar"))
         metadata[key] = {
@@ -223,8 +292,10 @@ def evaluate(
         }
         per_series: dict[SeriesKey, BacktestMetrics] = {}
         recent_mean_series: dict[SeriesKey, BacktestMetrics] = {}
+        zero_series: dict[SeriesKey, BacktestMetrics] = {}
         horizon_series: dict[SeriesKey, BacktestMetrics] = {}
         horizon_control_series: dict[SeriesKey, BacktestMetrics] = {}
+        horizon_zero_series: dict[SeriesKey, BacktestMetrics] = {}
         for key, series in eligible.items():
             per_series[key] = backtest_weekly(
                 key,
@@ -237,6 +308,10 @@ def evaluate(
                 series,
                 holdout_weeks=holdout_weeks,
                 training_window_weeks=window,
+            )
+            zero_series[key] = _backtest_zero(
+                series,
+                holdout_weeks=holdout_weeks,
             )
             horizon_series[key] = _backtest_horizon(
                 key,
@@ -255,14 +330,24 @@ def evaluate(
                 config=cfg,
                 use_recent_mean_control=True,
             )
+            horizon_zero_series[key] = _backtest_zero(
+                series,
+                holdout_weeks=holdout_weeks,
+                horizon_weeks=horizon_weeks,
+            )
         by_pattern: dict[str, list[BacktestMetrics]] = defaultdict(list)
         recent_by_pattern: dict[str, list[BacktestMetrics]] = defaultdict(list)
+        zero_by_pattern: dict[str, list[BacktestMetrics]] = defaultdict(list)
         horizon_by_pattern: dict[str, list[BacktestMetrics]] = defaultdict(list)
         horizon_control_by_pattern: dict[str, list[BacktestMetrics]] = defaultdict(list)
+        horizon_zero_by_pattern: dict[str, list[BacktestMetrics]] = defaultdict(list)
         for key, metrics in per_series.items():
             by_pattern[patterns.get(key, "sin_clasificar")].append(metrics)
             recent_by_pattern[patterns.get(key, "sin_clasificar")].append(
                 recent_mean_series[key]
+            )
+            zero_by_pattern[patterns.get(key, "sin_clasificar")].append(
+                zero_series[key]
             )
             horizon_by_pattern[patterns.get(key, "sin_clasificar")].append(
                 horizon_series[key]
@@ -270,16 +355,23 @@ def evaluate(
             horizon_control_by_pattern[
                 patterns.get(key, "sin_clasificar")
             ].append(horizon_control_series[key])
+            horizon_zero_by_pattern[
+                patterns.get(key, "sin_clasificar")
+            ].append(horizon_zero_series[key])
         model_global = _aggregate_metrics(per_series.values())
         recent_global = _aggregate_metrics(recent_mean_series.values())
+        zero_global = _aggregate_metrics(zero_series.values())
         model_wape = model_global["wape"]
         recent_wape = recent_global["wape"]
+        zero_wape = zero_global["wape"]
         horizon_global = _aggregate_metrics(horizon_series.values())
         horizon_control_global = _aggregate_metrics(
             horizon_control_series.values()
         )
+        horizon_zero_global = _aggregate_metrics(horizon_zero_series.values())
         horizon_wape = horizon_global["wape"]
         horizon_control_wape = horizon_control_global["wape"]
+        horizon_zero_wape = horizon_zero_global["wape"]
         evaluations.append(
             {
                 "ventana_entrenamiento_semanas": window,
@@ -292,126 +384,245 @@ def evaluate(
                     pattern: _aggregate_metrics(values)
                     for pattern, values in sorted(by_pattern.items())
                 },
-                "control_promedio_movil_8": {
-                    "metricas_globales": recent_global,
-                    "metricas_por_patron": {
-                        pattern: _aggregate_metrics(values)
-                        for pattern, values in sorted(recent_by_pattern.items())
-                    },
-                },
-                "mejora_wape_vs_control": (
-                    round(float(recent_wape) - float(model_wape), 4)
-                    if model_wape is not None and recent_wape is not None
-                    else None
+                "metricas_por_sucursal": _aggregate_by_branch(
+                    per_series, metadata
                 ),
-                "evaluacion_horizonte": {
-                    "horizonte_semanas": horizon_weeks,
-                    "ventanas_rodantes_por_serie": max(
-                        holdout_weeks - horizon_weeks + 1, 0
-                    ),
-                    "metricas_globales": horizon_global,
-                    "metricas_por_patron": {
-                        pattern: _aggregate_metrics(values)
-                        for pattern, values in sorted(horizon_by_pattern.items())
-                    },
-                    "control_promedio_movil_8": {
-                        "metricas_globales": horizon_control_global,
-                        "metricas_por_patron": {
-                            pattern: _aggregate_metrics(values)
-                            for pattern, values in sorted(
-                                horizon_control_by_pattern.items()
-                            )
-                        },
-                    },
-                    "mejora_wape_vs_control": (
-                        round(
-                            float(horizon_control_wape) - float(horizon_wape),
-                            4,
-                        )
-                        if horizon_wape is not None
-                        and horizon_control_wape is not None
-                        else None
-                    ),
-                },
-            }
+                "control_prw”M≠¢Gß≤⁄Óù∆≠y‹_reference_is_blended_when_available(self) -> None:
+        target = MONDAY + timedelta(weeks=53)
+        weekly = {
+            MONDAY + timedelta(weeks=i): 2 for i in range(53)
+        }
+        weekly[target - timedelta(weeks=52)] = 10
+        result = forecast_weekly(
+            KEY,
+            weekly,
+            target,
+            config=BaselineConfig(seasonal_weight=0.5),
         )
+        self.assertEqual(result.demanda_estacional, 10)
+        self.assertGreater(result.demanda_proyectada, result.promedio_reciente)
+        self.assertEqual(result.confianza, "alta")
 
-    next_week = common_last_week + timedelta(weeks=1)
-    forecasts = []
-    for key, series in padded.items():
-        result = forecast_weekly(key, series, next_week, config=cfg)
-        forecasts.append(
+    def test_stockout_week_is_not_treated_as_zero_demand(self) -> None:
+        target = MONDAY + timedelta(weeks=5)
+        weekly = {
+            MONDAY + timedelta(weeks=0): 5,
+            MONDAY + timedelta(weeks=1): 5,
+            MONDAY + timedelta(weeks=2): 5,
+            MONDAY + timedelta(weeks=3): 5,
+            MONDAY + timedelta(weeks=4): 0,
+        }
+        regular = forecast_weekly(KEY, weekly, target).demanda_proyectada
+        censored = forecast_weekly(
+            KEY,
+            weekly,
+            target,
+            censored_weeks={MONDAY + timedelta(weeks=4)},
+        ).demanda_proyectada
+        self.assertGreater(censored, regular)
+        self.assertAlmostEqual(censored, 5)
+
+    def test_intermittent_demand_is_classified_and_non_negative(self) -> None:
+        target = MONDAY + timedelta(weeks=8)
+        weekly = {
+            MONDAY + timedelta(weeks=i): (3 if i in {1, 6} else 0)
+            for i in range(8)
+        }
+        result = forecast_weekly(KEY, weekly, target)
+        self.assertEqual(result.patron_demanda, "intermitente")
+        self.assertEqual(result.modelo, "media_intermitente_v1")
+        self.assertGreaterEqual(result.demanda_proyectada, 0)
+
+    def test_intermittent_forecast_decays_after_weeks_without_sales(self) -> None:
+        first_target = MONDAY + timedelta(weeks=5)
+        initial = {
+            MONDAY: 5,
+            MONDAY + timedelta(weeks=1): 0,
+            MONDAY + timedelta(weeks=2): 0,
+            MONDAY + timedelta(weeks=3): 0,
+            MONDAY + timedelta(weeks=4): 0,
+        }
+        config = BaselineConfig(intermittent_model="tsb")
+        first = forecast_weekly(KEY, initial, first_target, config=config)
+        later = forecast_weekly(
+            KEY,
             {
-                **metadata[key],
+                **initial,
                 **{
-                    name: value
-                    for name, value in asdict(result).items()
-                    if name != "key"
+                    first_target + timedelta(weeks=i): 0
+                    for i in range(4)
                 },
-            }
-        )
-    forecasts.sort(key=lambda value: float(value["demanda_proyectada"]), reverse=True)
-
-    return {
-        "dataset": {
-            "filas": len(rows),
-            "series": len(padded),
-            "desde": global_first.isoformat(),
-            "hasta": global_last.isoformat(),
-            "semana_pronosticada": next_week.isoformat(),
-            "patrones": {
-                pattern: sum(value == pattern for value in patterns.values())
-                for pattern in sorted(set(patterns.values()))
             },
-        },
-        "evaluaciones": evaluations,
-        "pronosticos_mayores": forecasts[:10],
-    }
-
-
-def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--holdout-weeks", type=int, default=8)
-    parser.add_argument("--horizon-weeks", type=int, default=4)
-    parser.add_argument("--recent-weeks", type=int, default=13)
-    parser.add_argument("--recent-decay", type=float, default=0.82)
-    parser.add_argument("--seasonal-weight", type=float, default=0.10)
-    parser.add_argument(
-        "--intermittent-model",
-        choices=("recent_mean", "tsb"),
-        default="recent_mean",
-    )
-    parser.add_argument("--intermittent-demand-alpha", type=float, default=0.20)
-    parser.add_argument("--intermittent-probability-beta", type=float, default=0.20)
-    args = parser.parse_args()
-    if args.holdout_weeks <= 0:
-        parser.error("--holdout-weeks debe ser positivo")
-    if args.horizon_weeks <= 0 or args.horizon_weeks > args.holdout_weeks:
-        parser.error("--horizon-weeks debe estar entre 1 y --holdout-weeks")
-    config = BaselineConfig(
-        recent_weeks=args.recent_weeks,
-        recent_decay=args.recent_decay,
-        seasonal_weight=args.seasonal_weight,
-        intermittent_model=args.intermittent_model,
-        intermittent_demand_alpha=args.intermittent_demand_alpha,
-        intermittent_probability_beta=args.intermittent_probability_beta,
-    )
-    rows = _load_rows(json.load(sys.stdin))
-    json.dump(
-        evaluate(
-            rows,
-            holdout_weeks=args.holdout_weeks,
-            horizon_weeks=args.horizon_weeks,
+            first_target + timedelta(weeks=4),
             config=config,
-        ),
-        sys.stdout,
-        ensure_ascii=False,
-        indent=2,
-        default=str,
-    )
-    sys.stdout.write("\n")
-    return 0
+        )
+        self.assertLess(later.demanda_proyectada, first.demanda_proyectada)
+
+    def test_current_incomplete_week_is_not_used(self) -> None:
+        target = MONDAY + timedelta(weeks=3)
+        weekly = {
+            MONDAY: 2,
+            MONDAY + timedelta(weeks=1): 4,
+            target: 100,
+        }
+        result = forecast_weekly(KEY, weekly, target)
+        self.assertLess(result.demanda_proyectada, 10)
+        # La semana anterior sin filas se completa con cero, pero la semana
+        # objetivo (todav√≠a incompleta) no participa del c√°lculo.
+        self.assertEqual(result.semanas_historia, 3)
+
+    def test_backtest_returns_auditable_metrics(self) -> None:
+        weekly = {
+            MONDAY + timedelta(weeks=i): 4 for i in range(20)
+        }
+        metrics = backtest_weekly(KEY, weekly, holdout_weeks=6)
+        self.assertEqual(metrics.observaciones, 6)
+        self.assertAlmostEqual(metrics.mae, 0)
+        self.assertAlmostEqual(metrics.wape or 0, 0)
+        self.assertAlmostEqual(metrics.sesgo_medio, 0)
+
+    def test_backtest_includes_weeks_without_sales(self) -> None:
+        weekly = {
+            MONDAY: 2,
+            MONDAY + timedelta(weeks=4): 2,
+        }
+        metrics = backtest_weekly(KEY, weekly, holdout_weeks=3)
+        self.assertEqual(metrics.observaciones, 3)
+        self.assertEqual(metrics.demanda_real_total, 2)
+
+    def test_backtest_accepts_a_fixed_training_window(self) -> None:
+        weekly = {
+            MONDAY + timedelta(weeks=i): 4 for i in range(30)
+        }
+        metrics = backtest_weekly(
+            KEY,
+            weekly,
+            holdout_weeks=4,
+            training_window_weeks=12,
+        )
+        self.assertEqual(metrics.observaciones, 4)
+        self.assertAlmostEqual(metrics.mae, 0)
+
+    def test_n8n_iso_timestamp_is_accepted(self) -> None:
+        self.assertEqual(_date("2026-07-06T00:00:00.000Z"), MONDAY)
+
+    def test_four_week_horizon_uses_rolling_windows(self) -> None:
+        weekly = {
+            MONDAY + timedelta(weeks=i): 5 for i in range(70)
+        }
+        metrics = _backtest_horizon(
+            KEY,
+            weekly,
+            holdout_weeks=8,
+            training_window_weeks=52,
+            horizon_weeks=4,
+            config=BaselineConfig(seasonal_weight=0),
+        )
+        self.assertEqual(metrics.observaciones, 5)
+        self.assertEqual(metrics.demanda_real_total, 100)
+        self.assertAlmostEqual(metrics.mae, 0)
+
+    def test_zero_control_uses_the_same_rolling_horizon(self) -> None:
+        weekly = {
+            MONDAY + timedelta(weeks=i): 5 for i in range(10)
+        }
+        metrics = _backtest_zero(
+            weekly,
+            holdout_weeks=4,
+            horizon_weeks=2,
+        )
+        self.assertEqual(metrics.observaciones, 3)
+        self.assertEqual(metrics.demanda_real_total, 30)
+        self.assertEqual(metrics.demanda_proyectada_total, 0)
+        self.assertAlmostEqual(metrics.wape or 0, 1)
+        self.assertAlmostEqual(metrics.sesgo_medio, -10)
+
+    def test_pilot_reports_zero_control_and_metrics_by_branch(self) -> None:
+        rows = []
+        for branch_id, branch_name in (
+            (6455, "Deposito central"),
+            (6458, "Salguero"),
+            (8774, "Boedo"),
+        ):
+            for week in range(10):
+                rows.append(
+                    {
+                        "fecha_comprobante": (
+                            MONDAY + timedelta(weeks=week)
+                        ).isoformat(),
+                        "id_sucursal": branch_id,
+                        "sucursal_nombre": branch_name,
+                        "id_articulo": 10,
+                        "sku": "SKU-10",
+                        "unidades_vendidas": 2,
+                        "patron_muestra": "regular",
+                    }
+                )
+        result = evaluate(
+            rows,
+            windows=(4,),
+            holdout_weeks=2,
+            horizon_weeks=2,
+        )
+        evaluation = result["evaluaciones"][0]
+        self.assertEqual(result["dataset"]["sucursales_excluidas"], [6455])
+        self.assertEqual(result["dataset"]["series_excluidas_sucursal"], 1)
+        self.assertEqual(result["dataset"]["series"], 2)
+        self.assertEqual(
+            evaluation["control_pronostico_cero"]["metricas_globales"]["wape"],
+            1,
+        )
+        self.assertEqual(
+            [
+                branch["sucursal_nombre"]
+                for branch in evaluation["metricas_por_sucursal"]
+            ],
+            ["Salguero", "Boedo"],
+        )
+        self.assertIn(
+            "control_pronostico_cero", evaluation["evaluacion_horizonte"]
+        )
+
+    def test_csv_round_trip_uses_real_view_columns(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            source = Path(temp_dir) / "ventas.csv"
+            target = Path(temp_dir) / "forecast.csv"
+            with source.open("w", encoding="utf-8", newline="") as handle:
+                writer = csv.DictWriter(
+                    handle,
+                    fieldnames=[
+                        "fecha_comprobante",
+                        "sociedad",
+                        "id_sucursal",
+                        "sucursal_nombre",
+                        "id_articulo",
+                        "sku",
+                        "articulo_nombre",
+                        "unidades_vendidas",
+                        "unidades_devueltas",
+                    ],
+                )
+                writer.writeheader()
+                writer.writerow(
+                    {
+                        "fecha_comprobante": "2026-07-06",
+                        "sociedad": "Endron",
+                        "id_sucursal": "16",
+                        "sucursal_nombre": "Salguero",
+                        "id_articulo": "10",
+                        "sku": "SKU-10",
+                        "articulo_nombre": "Art√≠culo",
+                        "unidades_vendidas": "2",
+                        "unidades_devueltas": "1",
+                    }
+                )
+            sales = load_daily_sales_csv(source)
+            forecasts = forecast_all(sales, date(2026, 7, 13))
+            write_forecasts_csv(target, forecasts)
+            self.assertEqual(len(sales), 1)
+            self.assertEqual(len(forecasts), 1)
+            self.assertIn("demanda_proyectada", target.read_text(encoding="utf-8"))
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    unittest.main()
