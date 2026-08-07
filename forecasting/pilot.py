@@ -27,7 +27,7 @@ from .baseline import (
 from .io import _date, _number
 
 
-DEFAULT_EXCLUDED_BRANCH_IDS = frozenset({6455})
+DEFAULT_EXCLUDED_BRANCH_IDS = frozenset({6455, 9261})
 
 
 def _load_rows(payload: object) -> list[dict[str, object]]:
@@ -233,6 +233,21 @@ def _aggregate_by_branch(
     ]
 
 
+def _aggregate_by_metadata(
+    metrics: Mapping[SeriesKey, BacktestMetrics],
+    metadata: Mapping[SeriesKey, dict[str, object]],
+    field: str,
+) -> dict[str, dict[str, object]]:
+    grouped: dict[str, list[BacktestMetrics]] = defaultdict(list)
+    for key, value in metrics.items():
+        label = str(metadata.get(key, {}).get(field, "") or "sin_clasificar")
+        grouped[label].append(value)
+    return {
+        label: _aggregate_metrics(values)
+        for label, values in sorted(grouped.items())
+    }
+
+
 def evaluate(
     rows: list[dict[str, object]],
     *,
@@ -268,6 +283,13 @@ def evaluate(
             "id_articulo": key.id_articulo,
             "sku": str(row.get("sku", "") or ""),
             "articulo_nombre": str(row.get("articulo_nombre", "") or ""),
+            "grupo_articulo": str(
+                row.get("grupo_articulo", "") or "sin_clasificar"
+            ),
+            "color": str(row.get("color", "") or "sin_clasificar"),
+            "talle": str(row.get("talle", "") or "sin_clasificar"),
+            "rubro": str(row.get("rubro", "") or "sin_clasificar"),
+            "subrubro": str(row.get("subrubro", "") or "sin_clasificar"),
             "patron_muestra": patterns[key],
         }
 
@@ -387,6 +409,12 @@ def evaluate(
                 "metricas_por_sucursal": _aggregate_by_branch(
                     per_series, metadata
                 ),
+                "metricas_por_rubro": _aggregate_by_metadata(
+                    per_series, metadata, "rubro"
+                ),
+                "metricas_por_subrubro": _aggregate_by_metadata(
+                    per_series, metadata, "subrubro"
+                ),
                 "control_promedio_movil_8": {
                     "metricas_globales": recent_global,
                     "metricas_por_patron": {
@@ -395,6 +423,12 @@ def evaluate(
                     },
                     "metricas_por_sucursal": _aggregate_by_branch(
                         recent_mean_series, metadata
+                    ),
+                    "metricas_por_rubro": _aggregate_by_metadata(
+                        recent_mean_series, metadata, "rubro"
+                    ),
+                    "metricas_por_subrubro": _aggregate_by_metadata(
+                        recent_mean_series, metadata, "subrubro"
                     ),
                 },
                 "control_pronostico_cero": {
@@ -405,6 +439,12 @@ def evaluate(
                     },
                     "metricas_por_sucursal": _aggregate_by_branch(
                         zero_series, metadata
+                    ),
+                    "metricas_por_rubro": _aggregate_by_metadata(
+                        zero_series, metadata, "rubro"
+                    ),
+                    "metricas_por_subrubro": _aggregate_by_metadata(
+                        zero_series, metadata, "subrubro"
                     ),
                 },
                 "mejora_wape_vs_control": (
@@ -430,6 +470,12 @@ def evaluate(
                     "metricas_por_sucursal": _aggregate_by_branch(
                         horizon_series, metadata
                     ),
+                    "metricas_por_rubro": _aggregate_by_metadata(
+                        horizon_series, metadata, "rubro"
+                    ),
+                    "metricas_por_subrubro": _aggregate_by_metadata(
+                        horizon_series, metadata, "subrubro"
+                    ),
                     "control_promedio_movil_8": {
                         "metricas_globales": horizon_control_global,
                         "metricas_por_patron": {
@@ -440,6 +486,12 @@ def evaluate(
                         },
                         "metricas_por_sucursal": _aggregate_by_branch(
                             horizon_control_series, metadata
+                        ),
+                        "metricas_por_rubro": _aggregate_by_metadata(
+                            horizon_control_series, metadata, "rubro"
+                        ),
+                        "metricas_por_subrubro": _aggregate_by_metadata(
+                            horizon_control_series, metadata, "subrubro"
                         ),
                     },
                     "control_pronostico_cero": {
@@ -452,6 +504,12 @@ def evaluate(
                         },
                         "metricas_por_sucursal": _aggregate_by_branch(
                             horizon_zero_series, metadata
+                        ),
+                        "metricas_por_rubro": _aggregate_by_metadata(
+                            horizon_zero_series, metadata, "rubro"
+                        ),
+                        "metricas_por_subrubro": _aggregate_by_metadata(
+                            horizon_zero_series, metadata, "subrubro"
                         ),
                     },
                     "mejora_wape_vs_control": (
@@ -502,6 +560,27 @@ def evaluate(
             "sucursales_excluidas": sorted(excluded),
             "filas_excluidas": excluded_rows,
             "series_excluidas_sucursal": len(excluded_series),
+            "rubros": len(
+                {str(row.get("rubro", "") or "sin_clasificar") for row in retail_rows}
+            ),
+            "subrubros": len(
+                {
+                    str(row.get("subrubro", "") or "sin_clasificar")
+                    for row in retail_rows
+                }
+            ),
+            "grupos_articulo": len(
+                {
+                    str(row.get("grupo_articulo", "") or "sin_clasificar")
+                    for row in retail_rows
+                }
+            ),
+            "colores": len(
+                {str(row.get("color", "") or "sin_clasificar") for row in retail_rows}
+            ),
+            "talles": len(
+                {str(row.get("talle", "") or "sin_clasificar") for row in retail_rows}
+            ),
             "patrones": {
                 pattern: sum(value == pattern for value in patterns.values())
                 for pattern in sorted(set(patterns.values()))
@@ -516,16 +595,20 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--holdout-weeks", type=int, default=8)
     parser.add_argument("--horizon-weeks", type=int, default=4)
-    parser.add_argument("--recent-weeks", type=int, default=13)
-    parser.add_argument("--recent-decay", type=float, default=0.82)
-    parser.add_argument("--seasonal-weight", type=float, default=0.10)
+    parser.add_argument("--recent-weeks", type=int, default=10)
+    parser.add_argument("--recent-decay", type=float, default=0.96)
+    parser.add_argument("--seasonal-weight", type=float, default=0.05)
+    parser.add_argument(
+        "--demand-basis", choices=("gross", "net"), default="net"
+    )
     parser.add_argument(
         "--intermittent-model",
-        choices=("recent_mean", "tsb"),
-        default="recent_mean",
+        choices=("recent_mean", "tsb", "hybrid"),
+        default="hybrid",
     )
-    parser.add_argument("--intermittent-demand-alpha", type=float, default=0.20)
-    parser.add_argument("--intermittent-probability-beta", type=float, default=0.20)
+    parser.add_argument("--intermittent-demand-alpha", type=float, default=0.10)
+    parser.add_argument("--intermittent-probability-beta", type=float, default=0.10)
+    parser.add_argument("--intermittent-hybrid-weight", type=float, default=0.25)
     args = parser.parse_args()
     if args.holdout_weeks <= 0:
         parser.error("--holdout-weeks debe ser positivo")
@@ -538,6 +621,8 @@ def main() -> int:
         intermittent_model=args.intermittent_model,
         intermittent_demand_alpha=args.intermittent_demand_alpha,
         intermittent_probability_beta=args.intermittent_probability_beta,
+        intermittent_hybrid_weight=args.intermittent_hybrid_weight,
+        demand_basis=args.demand_basis,
     )
     rows = _load_rows(json.load(sys.stdin))
     json.dump(

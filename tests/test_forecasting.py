@@ -24,15 +24,37 @@ KEY = SeriesKey(id_sucursal=16, id_articulo=11594240003)
 
 
 class ForecastingBaselineTests(unittest.TestCase):
-    def test_aggregation_sums_societies_and_excludes_envio(self) -> None:
+    def test_default_config_uses_validated_retail_parameters(self) -> None:
+        config = BaselineConfig()
+        self.assertEqual(config.demand_basis, "net")
+        self.assertEqual(config.recent_weeks, 10)
+        self.assertEqual(config.recent_decay, 0.96)
+        self.assertEqual(config.seasonal_weight, 0.05)
+        self.assertEqual(config.intermittent_model, "hybrid")
+        self.assertEqual(config.intermittent_demand_alpha, 0.10)
+        self.assertEqual(config.intermittent_probability_beta, 0.10)
+        self.assertEqual(config.intermittent_hybrid_weight, 0.25)
+        self.assertEqual(config.excluded_skus, frozenset({"ENVIO", "AP9002"}))
+
+    def test_aggregation_uses_net_demand_and_excludes_operational_skus(self) -> None:
         sales = [
-            DailySale(MONDAY, 16, 10, 2, sociedad="A", sku="SKU-10"),
+            DailySale(
+                MONDAY,
+                16,
+                10,
+                4,
+                unidades_devueltas=2,
+                sociedad="A",
+                sku="SKU-10",
+            ),
             DailySale(MONDAY + timedelta(days=1), 16, 10, 3, sociedad="B", sku="SKU-10"),
             DailySale(MONDAY, 16, 99, 8, sociedad="A", sku="Envio"),
+            DailySale(MONDAY, 16, 100, 13009, sociedad="A", sku="AP9002"),
         ]
         weekly = aggregate_weekly(sales)
         self.assertEqual(weekly[SeriesKey(16, 10)][MONDAY], 5)
         self.assertNotIn(SeriesKey(16, 99), weekly)
+        self.assertNotIn(SeriesKey(16, 100), weekly)
 
     def test_net_basis_never_creates_negative_demand(self) -> None:
         sale = DailySale(MONDAY, 16, 10, 2, unidades_devueltas=5)
@@ -101,7 +123,7 @@ class ForecastingBaselineTests(unittest.TestCase):
         }
         result = forecast_weekly(KEY, weekly, target)
         self.assertEqual(result.patron_demanda, "intermitente")
-        self.assertEqual(result.modelo, "media_intermitente_v1")
+        self.assertEqual(result.modelo, "hibrido_intermitente_v1")
         self.assertGreaterEqual(result.demanda_proyectada, 0)
 
     def test_intermittent_forecast_decays_after_weeks_without_sales(self) -> None:
@@ -128,6 +150,49 @@ class ForecastingBaselineTests(unittest.TestCase):
             config=config,
         )
         self.assertLess(later.demanda_proyectada, first.demanda_proyectada)
+
+    def test_hybrid_intermittent_blends_recent_mean_and_tsb(self) -> None:
+        target = MONDAY + timedelta(weeks=8)
+        weekly = {
+            MONDAY + timedelta(weeks=i): (6 if i in {1, 6} else 0)
+            for i in range(8)
+        }
+        recent = forecast_weekly(
+            KEY,
+            weekly,
+            target,
+            config=BaselineConfig(intermittent_model="recent_mean"),
+        )
+        tsb = forecast_weekly(
+            KEY,
+            weekly,
+            target,
+            config=BaselineConfig(
+                intermittent_model="tsb",
+                intermittent_demand_alpha=0.10,
+                intermittent_probability_beta=0.10,
+            ),
+        )
+        hybrid = forecast_weekly(
+            KEY,
+            weekly,
+            target,
+            config=BaselineConfig(
+                intermittent_model="hybrid",
+                intermittent_demand_alpha=0.10,
+                intermittent_probability_beta=0.10,
+                intermittent_hybrid_weight=0.50,
+            ),
+        )
+        self.assertEqual(hybrid.modelo, "hibrido_intermitente_v1")
+        self.assertAlmostEqual(
+            hybrid.demanda_proyectada,
+            (recent.demanda_proyectada + tsb.demanda_proyectada) / 2,
+        )
+
+    def test_hybrid_weight_must_be_between_zero_and_one(self) -> None:
+        with self.assertRaises(ValueError):
+            BaselineConfig(intermittent_hybrid_weight=1.01)
 
     def test_current_incomplete_week_is_not_used(self) -> None:
         target = MONDAY + timedelta(weeks=3)
@@ -212,6 +277,7 @@ class ForecastingBaselineTests(unittest.TestCase):
         rows = []
         for branch_id, branch_name in (
             (6455, "Deposito central"),
+            (9261, "Mayorista"),
             (6458, "Salguero"),
             (8774, "Boedo"),
         ):
@@ -225,6 +291,25 @@ class ForecastingBaselineTests(unittest.TestCase):
                         "sucursal_nombre": branch_name,
                         "id_articulo": 10,
                         "sku": "SKU-10",
+                        "grupo_articulo": (
+                            "Medias Base" if branch_id == 6458 else "Remeras Base"
+                        ),
+                        "color": "Negro" if branch_id == 6458 else "Blanco",
+                        "talle": "U" if branch_id == 6458 else "M",
+                        "rubro": (
+                            "Mayorista"
+                            if branch_id in (6455, 9261)
+                            else "Medias"
+                            if branch_id == 6458
+                            else "Remeras"
+                        ),
+                        "subrubro": (
+                            "Canal"
+                            if branch_id in (6455, 9261)
+                            else "Dama"
+                            if branch_id == 6458
+                            else "Hombre"
+                        ),
                         "unidades_vendidas": 2,
                         "patron_muestra": "regular",
                     }
@@ -236,9 +321,28 @@ class ForecastingBaselineTests(unittest.TestCase):
             horizon_weeks=2,
         )
         evaluation = result["evaluaciones"][0]
-        self.assertEqual(result["dataset"]["sucursales_excluidas"], [6455])
-        self.assertEqual(result["dataset"]["series_excluidas_sucursal"], 1)
+        self.assertEqual(
+            result["dataset"]["sucursales_excluidas"], [6455, 9261]
+        )
+        self.assertEqual(result["dataset"]["series_excluidas_sucursal"], 2)
         self.assertEqual(result["dataset"]["series"], 2)
+        self.assertEqual(result["dataset"]["rubros"], 2)
+        self.assertEqual(result["dataset"]["subrubros"], 2)
+        self.assertEqual(result["dataset"]["grupos_articulo"], 2)
+        self.assertEqual(result["dataset"]["colores"], 2)
+        self.assertEqual(result["dataset"]["talles"], 2)
+        self.assertEqual(
+            {item["grupo_articulo"] for item in result["pronosticos_mayores"]},
+            {"Medias Base", "Remeras Base"},
+        )
+        self.assertEqual(
+            {item["color"] for item in result["pronosticos_mayores"]},
+            {"Negro", "Blanco"},
+        )
+        self.assertEqual(
+            {item["talle"] for item in result["pronosticos_mayores"]},
+            {"U", "M"},
+        )
         self.assertEqual(
             evaluation["control_pronostico_cero"]["metricas_globales"]["wape"],
             1,
@@ -249,6 +353,14 @@ class ForecastingBaselineTests(unittest.TestCase):
                 for branch in evaluation["metricas_por_sucursal"]
             ],
             ["Salguero", "Boedo"],
+        )
+        self.assertEqual(
+            sorted(evaluation["metricas_por_rubro"]),
+            ["Medias", "Remeras"],
+        )
+        self.assertEqual(
+            sorted(evaluation["metricas_por_subrubro"]),
+            ["Dama", "Hombre"],
         )
         self.assertIn(
             "control_pronostico_cero", evaluation["evaluacion_horizonte"]

@@ -50,18 +50,19 @@ class DailySale:
 class BaselineConfig:
     """Parámetros explícitos y versionables del modelo base."""
 
-    recent_weeks: int = 13
-    recent_decay: float = 0.82
+    recent_weeks: int = 10
+    recent_decay: float = 0.96
     seasonal_lag_weeks: int = 52
-    seasonal_weight: float = 0.10
+    seasonal_weight: float = 0.05
     minimum_history_weeks: int = 4
     intermittent_zero_share: float = 0.50
-    intermittent_model: str = "recent_mean"
-    intermittent_demand_alpha: float = 0.20
-    intermittent_probability_beta: float = 0.20
-    demand_basis: str = "gross"
+    intermittent_model: str = "hybrid"
+    intermittent_demand_alpha: float = 0.10
+    intermittent_probability_beta: float = 0.10
+    intermittent_hybrid_weight: float = 0.25
+    demand_basis: str = "net"
     excluded_skus: frozenset[str] = field(
-        default_factory=lambda: frozenset({"ENVIO"})
+        default_factory=lambda: frozenset({"ENVIO", "AP9002"})
     )
 
     def __post_init__(self) -> None:
@@ -77,12 +78,16 @@ class BaselineConfig:
             raise ValueError("minimum_history_weeks debe ser positivo")
         if not 0 <= self.intermittent_zero_share <= 1:
             raise ValueError("intermittent_zero_share debe estar entre 0 y 1")
-        if self.intermittent_model not in {"recent_mean", "tsb"}:
-            raise ValueError("intermittent_model debe ser 'recent_mean' o 'tsb'")
+        if self.intermittent_model not in {"recent_mean", "tsb", "hybrid"}:
+            raise ValueError(
+                "intermittent_model debe ser 'recent_mean', 'tsb' o 'hybrid'"
+            )
         if not 0 < self.intermittent_demand_alpha <= 1:
             raise ValueError("intermittent_demand_alpha debe estar entre 0 y 1")
         if not 0 < self.intermittent_probability_beta <= 1:
             raise ValueError("intermittent_probability_beta debe estar entre 0 y 1")
+        if not 0 <= self.intermittent_hybrid_weight <= 1:
+            raise ValueError("intermittent_hybrid_weight debe estar entre 0 y 1")
         if self.demand_basis not in {"gross", "net"}:
             raise ValueError("demand_basis debe ser 'gross' o 'net'")
 
@@ -295,6 +300,14 @@ def forecast_weekly(
         if cfg.intermittent_model == "tsb":
             projected = _tsb_intermittent(history, cfg, censored)
             model = "tsb_intermitente_v1"
+        elif cfg.intermittent_model == "hybrid":
+            recent_intermittent = _mean_recent(history, target, cfg, censored)
+            tsb_intermittent = _tsb_intermittent(history, cfg, censored)
+            projected = (
+                recent_intermittent * (1 - cfg.intermittent_hybrid_weight)
+                + tsb_intermittent * cfg.intermittent_hybrid_weight
+            )
+            model = "hibrido_intermitente_v1"
         else:
             projected = _mean_recent(history, target, cfg, censored)
             model = "media_intermitente_v1"
