@@ -17,10 +17,12 @@ from typing import Iterable, Mapping
 from .baseline import (
     BacktestMetrics,
     BaselineConfig,
+    DEFAULT_BRANCH_CLOSURE_DATES,
     DailySale,
     SeriesKey,
     aggregate_weekly,
     backtest_weekly,
+    branch_is_open_for_forecast,
     forecast_weekly,
     week_start,
 )
@@ -68,10 +70,12 @@ def _aggregate_metrics(metrics: Iterable[BacktestMetrics]) -> dict[str, object]:
         "series": len(values),
         "observaciones": observations,
         "mae": round(absolute_error / observations, 4) if observations else None,
+        "error_absoluto_total": round(absolute_error, 4),
         "wape": round(absolute_error / actual, 4) if actual else None,
         "sesgo_medio": round(signed_error / observations, 4) if observations else None,
         "demanda_real_total": round(actual, 4),
         "demanda_proyectada_total": round(projected, 4),
+        "desvio_volumen_total": round(projected - actual, 4),
     }
 
 
@@ -248,16 +252,96 @@ def _aggregate_by_metadata(
     }
 
 
+def _normalized_label(row: Mapping[str, object], field: str) -> str:
+    return str(row.get(field, "") or "").strip() or "sin_clasificar"
+
+
+def _seasonal_rubro_comparison(
+    model: Mapping[str, dict[str, object]],
+    control: Mapping[str, dict[str, object]],
+) -> dict[str, dict[str, object]]:
+    result: dict[str, dict[str, object]] = {}
+    for rubro, metrics in model.items():
+        normalized = rubro.casefold()
+        if "verano" not in normalized and "invierno" not in normalized:
+            continue
+        control_metrics = control.get(rubro, {})
+        model_wape = metrics.get("wape")
+        control_wape = control_metrics.get("wape")
+        result[rubro] = {
+            "temporada": "verano" if "verano" in normalized else "invierno",
+            "modelo": metrics,
+            "control_promedio_movil_8": control_metrics,
+            "mejora_wape_vs_control": (
+                round(float(control_wape) - float(model_wape), 4)
+                if model_wape is not None and control_wape is not None
+                else None
+            ),
+        }
+    return result
+
+
+def _metrics_comparison(
+    model_metrics: dict[str, object],
+    control_metrics: dict[str, object],
+) -> dict[str, object]:
+    model_wape = model_metrics.get("wape")
+    control_wape = control_metrics.get("wape")
+    return {
+        "modelo": model_metrics,
+        "control_promedio_movil_8": control_metrics,
+        "mejora_wape_vs_control": (
+            round(float(control_wape) - float(model_wape), 4)
+            if model_wape is not None and control_wape is not None
+            else None
+        ),
+    }
+
+
+def _second_selection_comparison(
+    model: Mapping[SeriesKey, BacktestMetrics],
+    control: Mapping[SeriesKey, BacktestMetrics],
+    metadata: Mapping[SeriesKey, dict[str, object]],
+) -> dict[str, object]:
+    keys = [
+        key
+        for key in model
+        if bool(metadata.get(key, {}).get("es_segunda_seleccion", False))
+    ]
+    return _metrics_comparison(
+        _aggregate_metrics(model[key] for key in keys),
+        _aggregate_metrics(control[key] for key in keys),
+    )
+
+
+def _forecast_usage(metadata: Mapping[str, object]) -> str:
+    if bool(metadata.get("es_segunda_seleccion", False)):
+        return "revision_manual_segunda_seleccion"
+    if metadata.get("cohorte_historia") == "nuevo_menos_26":
+        return "revision_manual_historia_insuficiente"
+    if metadata.get("cohorte_historia") == "historia_26_51":
+        return "revision_manual_historia_limitada"
+    if metadata.get("estado_actividad") == "sin_venta_13_mas":
+        return "revision_manual_inactividad"
+    return "elegible_simulacion_reposicion"
+
+
 def evaluate(
     rows: list[dict[str, object]],
     *,
-    windows: tuple[int, ...] = (52, 78, 104),
+    windows: tuple[int, ...] = (8, 13, 26, 52, 78, 104),
     holdout_weeks: int = 8,
     horizon_weeks: int = 4,
     config: BaselineConfig | None = None,
     excluded_branch_ids: Iterable[int] = DEFAULT_EXCLUDED_BRANCH_IDS,
+    branch_closure_dates: Mapping[int, date] | None = None,
 ) -> dict[str, object]:
     cfg = config or BaselineConfig()
+    closures = (
+        DEFAULT_BRANCH_CLOSURE_DATES
+        if branch_closure_dates is None
+        else branch_closure_dates
+    )
     excluded = frozenset(int(value) for value in excluded_branch_ids)
     retail_rows = [
         row for row in rows if int(row["id_sucursal"]) not in excluded
@@ -279,38 +363,61 @@ def evaluate(
         patterns[key] = str(row.get("patron_muestra", "sin_clasificar"))
         metadata[key] = {
             "id_sucursal": key.id_sucursal,
-            "sucursal_nombre": str(row.get("sucursal_nombre", "") or ""),
+            "sucursal_nombre": str(row.get("sucursal_nombre", "") or "").strip(),
             "id_articulo": key.id_articulo,
             "sku": str(row.get("sku", "") or ""),
             "articulo_nombre": str(row.get("articulo_nombre", "") or ""),
-            "grupo_articulo": str(
-                row.get("grupo_articulo", "") or "sin_clasificar"
-            ),
-            "color": str(row.get("color", "") or "sin_clasificar"),
-            "talle": str(row.get("talle", "") or "sin_clasificar"),
-            "rubro": str(row.get("rubro", "") or "sin_clasificar"),
-            "subrubro": str(row.get("subrubro", "") or "sin_clasificar"),
+            "grupo_articulo": _normalized_label(row, "grupo_articulo"),
+            "color": _normalized_label(row, "color"),
+            "talle": _normalized_label(row, "talle"),
+            "rubro": _normalized_label(row, "rubro"),
+            "subrubro": _normalized_label(row, "subrubro"),
             "patron_muestra": patterns[key],
+            "cohorte_historia": _normalized_label(row, "cohorte_historia"),
+            "estado_actividad": _normalized_label(row, "estado_actividad"),
+            "es_segunda_seleccion": bool(
+                row.get("es_segunda_seleccion", False)
+            ),
+            "primera_semana": str(row.get("primera_semana", "") or ""),
+            "ultima_semana_venta": str(
+                row.get("ultima_semana_venta", "") or ""
+            ),
+            "semanas_calendario": int(row.get("semanas_calendario", 0) or 0),
+            "semanas_sin_venta": int(row.get("semanas_sin_venta", 0) or 0),
         }
 
     global_first = min(sale.fecha for sale in sales)
     global_last = max(sale.fecha for sale in sales)
     common_last_week = week_start(global_last)
-    first_holdout_week = common_last_week - timedelta(weeks=holdout_weeks - 1)
-
     # Ausencia de fila semanal equivale a cero venta. Se agrega el extremo final
     # comun para que el backtest incluya tambien series sin ventas recientes.
-    padded = {key: dict(series) for key, series in weekly.items()}
-    for series in padded.values():
-        series.setdefault(common_last_week, 0.0)
+    # Las sucursales cerradas terminan en su ultima semana operativa: no se
+    # inventan ceros posteriores que deformen su evaluacion historica.
+    padded: dict[SeriesKey, dict[date, float]] = {}
+    for key, series in weekly.items():
+        last_series_week = common_last_week
+        closed_on = closures.get(key.id_sucursal)
+        if closed_on is not None:
+            last_series_week = min(last_series_week, week_start(closed_on))
+        completed = {
+            week: value
+            for week, value in series.items()
+            if week <= last_series_week
+        }
+        if not completed:
+            continue
+        completed.setdefault(last_series_week, 0.0)
+        padded[key] = completed
 
     evaluations: list[dict[str, object]] = []
     for window in windows:
-        required_first_week = first_holdout_week - timedelta(weeks=window)
         eligible = {
             key: series
             for key, series in padded.items()
-            if min(series) <= required_first_week
+            if min(series)
+            <= max(series)
+            - timedelta(weeks=holdout_weeks - 1)
+            - timedelta(weeks=window)
         }
         per_series: dict[SeriesKey, BacktestMetrics] = {}
         recent_mean_series: dict[SeriesKey, BacktestMetrics] = {}
@@ -391,6 +498,40 @@ def evaluate(
             horizon_control_series.values()
         )
         horizon_zero_global = _aggregate_metrics(horizon_zero_series.values())
+        model_rubros = _aggregate_by_metadata(per_series, metadata, "rubro")
+        control_rubros = _aggregate_by_metadata(
+            recent_mean_series, metadata, "rubro"
+        )
+        horizon_rubros = _aggregate_by_metadata(
+            horizon_series, metadata, "rubro"
+        )
+        horizon_control_rubros = _aggregate_by_metadata(
+            horizon_control_series, metadata, "rubro"
+        )
+        model_cohorts = _aggregate_by_metadata(
+            per_series, metadata, "cohorte_historia"
+        )
+        control_cohorts = _aggregate_by_metadata(
+            recent_mean_series, metadata, "cohorte_historia"
+        )
+        model_activity = _aggregate_by_metadata(
+            per_series, metadata, "estado_actividad"
+        )
+        control_activity = _aggregate_by_metadata(
+            recent_mean_series, metadata, "estado_actividad"
+        )
+        horizon_cohorts = _aggregate_by_metadata(
+            horizon_series, metadata, "cohorte_historia"
+        )
+        horizon_control_cohorts = _aggregate_by_metadata(
+            horizon_control_series, metadata, "cohorte_historia"
+        )
+        horizon_activity = _aggregate_by_metadata(
+            horizon_series, metadata, "estado_actividad"
+        )
+        horizon_control_activity = _aggregate_by_metadata(
+            horizon_control_series, metadata, "estado_actividad"
+        )
         horizon_wape = horizon_global["wape"]
         horizon_control_wape = horizon_control_global["wape"]
         horizon_zero_wape = horizon_zero_global["wape"]
@@ -409,8 +550,14 @@ def evaluate(
                 "metricas_por_sucursal": _aggregate_by_branch(
                     per_series, metadata
                 ),
-                "metricas_por_rubro": _aggregate_by_metadata(
-                    per_series, metadata, "rubro"
+                "metricas_por_rubro": model_rubros,
+                "comparacion_rubros_estacionales": _seasonal_rubro_comparison(
+                    model_rubros, control_rubros
+                ),
+                "metricas_por_cohorte_historia": model_cohorts,
+                "metricas_por_estado_actividad": model_activity,
+                "comparacion_segunda_seleccion": _second_selection_comparison(
+                    per_series, recent_mean_series, metadata
                 ),
                 "metricas_por_subrubro": _aggregate_by_metadata(
                     per_series, metadata, "subrubro"
@@ -424,9 +571,9 @@ def evaluate(
                     "metricas_por_sucursal": _aggregate_by_branch(
                         recent_mean_series, metadata
                     ),
-                    "metricas_por_rubro": _aggregate_by_metadata(
-                        recent_mean_series, metadata, "rubro"
-                    ),
+                    "metricas_por_rubro": control_rubros,
+                    "metricas_por_cohorte_historia": control_cohorts,
+                    "metricas_por_estado_actividad": control_activity,
                     "metricas_por_subrubro": _aggregate_by_metadata(
                         recent_mean_series, metadata, "subrubro"
                     ),
@@ -470,8 +617,14 @@ def evaluate(
                     "metricas_por_sucursal": _aggregate_by_branch(
                         horizon_series, metadata
                     ),
-                    "metricas_por_rubro": _aggregate_by_metadata(
-                        horizon_series, metadata, "rubro"
+                    "metricas_por_rubro": horizon_rubros,
+                    "comparacion_rubros_estacionales": _seasonal_rubro_comparison(
+                        horizon_rubros, horizon_control_rubros
+                    ),
+                    "metricas_por_cohorte_historia": horizon_cohorts,
+                    "metricas_por_estado_actividad": horizon_activity,
+                    "comparacion_segunda_seleccion": _second_selection_comparison(
+                        horizon_series, horizon_control_series, metadata
                     ),
                     "metricas_por_subrubro": _aggregate_by_metadata(
                         horizon_series, metadata, "subrubro"
@@ -487,9 +640,9 @@ def evaluate(
                         "metricas_por_sucursal": _aggregate_by_branch(
                             horizon_control_series, metadata
                         ),
-                        "metricas_por_rubro": _aggregate_by_metadata(
-                            horizon_control_series, metadata, "rubro"
-                        ),
+                        "metricas_por_rubro": horizon_control_rubros,
+                        "metricas_por_cohorte_historia": horizon_control_cohorts,
+                        "metricas_por_estado_actividad": horizon_control_activity,
                         "metricas_por_subrubro": _aggregate_by_metadata(
                             horizon_control_series, metadata, "subrubro"
                         ),
@@ -535,12 +688,20 @@ def evaluate(
         )
 
     next_week = common_last_week + timedelta(weeks=1)
+    closed_series = {
+        key
+        for key in padded
+        if not branch_is_open_for_forecast(key.id_sucursal, next_week, closures)
+    }
     forecasts = []
     for key, series in padded.items():
+        if key in closed_series:
+            continue
         result = forecast_weekly(key, series, next_week, config=cfg)
         forecasts.append(
             {
                 **metadata[key],
+                "uso_reposicion": _forecast_usage(metadata[key]),
                 **{
                     name: value
                     for name, value in asdict(result).items()
@@ -549,6 +710,13 @@ def evaluate(
             }
         )
     forecasts.sort(key=lambda value: float(value["demanda_proyectada"]), reverse=True)
+    forecast_cohorts: dict[str, int] = defaultdict(int)
+    forecast_confidence: dict[str, int] = defaultdict(int)
+    forecast_usage: dict[str, int] = defaultdict(int)
+    for forecast in forecasts:
+        forecast_cohorts[str(forecast["cohorte_historia"])] += 1
+        forecast_confidence[str(forecast["confianza"])] += 1
+        forecast_usage[str(forecast["uso_reposicion"])] += 1
 
     return {
         "dataset": {
@@ -560,26 +728,72 @@ def evaluate(
             "sucursales_excluidas": sorted(excluded),
             "filas_excluidas": excluded_rows,
             "series_excluidas_sucursal": len(excluded_series),
+            "sucursales_cerradas_al_pronostico": [
+                {
+                    "id_sucursal": branch_id,
+                    "sucursal_nombre": next(
+                        (
+                            str(value.get("sucursal_nombre", ""))
+                            for key, value in metadata.items()
+                            if key.id_sucursal == branch_id
+                        ),
+                        "",
+                    ),
+                    "fecha_cierre": closures[branch_id].isoformat(),
+                }
+                for branch_id in sorted(
+                    {key.id_sucursal for key in closed_series}
+                )
+            ],
+            "series_excluidas_cierre": len(closed_series),
+            "cohortes_historia": {
+                label: sum(
+                    value.get("cohorte_historia") == label
+                    for value in metadata.values()
+                )
+                for label in sorted(
+                    {
+                        str(value.get("cohorte_historia", "sin_clasificar"))
+                        for value in metadata.values()
+                    }
+                )
+            },
+            "estados_actividad": {
+                label: sum(
+                    value.get("estado_actividad") == label
+                    for value in metadata.values()
+                )
+                for label in sorted(
+                    {
+                        str(value.get("estado_actividad", "sin_clasificar"))
+                        for value in metadata.values()
+                    }
+                )
+            },
+            "series_segunda_seleccion": sum(
+                bool(value.get("es_segunda_seleccion", False))
+                for value in metadata.values()
+            ),
             "rubros": len(
-                {str(row.get("rubro", "") or "sin_clasificar") for row in retail_rows}
+                {_normalized_label(row, "rubro") for row in retail_rows}
             ),
             "subrubros": len(
                 {
-                    str(row.get("subrubro", "") or "sin_clasificar")
+                    _normalized_label(row, "subrubro")
                     for row in retail_rows
                 }
             ),
             "grupos_articulo": len(
                 {
-                    str(row.get("grupo_articulo", "") or "sin_clasificar")
+                    _normalized_label(row, "grupo_articulo")
                     for row in retail_rows
                 }
             ),
             "colores": len(
-                {str(row.get("color", "") or "sin_clasificar") for row in retail_rows}
+                {_normalized_label(row, "color") for row in retail_rows}
             ),
             "talles": len(
-                {str(row.get("talle", "") or "sin_clasificar") for row in retail_rows}
+                {_normalized_label(row, "talle") for row in retail_rows}
             ),
             "patrones": {
                 pattern: sum(value == pattern for value in patterns.values())
@@ -587,6 +801,16 @@ def evaluate(
             },
         },
         "evaluaciones": evaluations,
+        "resumen_pronosticos": {
+            "series": len(forecasts),
+            "por_cohorte_historia": dict(sorted(forecast_cohorts.items())),
+            "por_confianza": dict(sorted(forecast_confidence.items())),
+            "por_uso_reposicion": dict(sorted(forecast_usage.items())),
+            "segunda_seleccion": sum(
+                bool(value.get("es_segunda_seleccion", False))
+                for value in forecasts
+            ),
+        },
         "pronosticos_mayores": forecasts[:10],
     }
 

@@ -36,6 +36,22 @@ class ForecastingBaselineTests(unittest.TestCase):
         self.assertEqual(config.intermittent_hybrid_weight, 0.25)
         self.assertEqual(config.excluded_skus, frozenset({"ENVIO", "AP9002"}))
 
+    def test_closed_branch_keeps_history_but_has_no_future_forecast(self) -> None:
+        sales = [
+            DailySale(MONDAY, 9258, 10, 2, sucursal_nombre="Membrillar"),
+            DailySale(MONDAY, 6458, 10, 2, sucursal_nombre="Salguero"),
+        ]
+        before_closure = forecast_all(sales, date(2026, 7, 27))
+        after_closure = forecast_all(sales, date(2026, 8, 3))
+        self.assertEqual(
+            {item.key.id_sucursal for item in before_closure},
+            {6458, 9258},
+        )
+        self.assertEqual(
+            {item.key.id_sucursal for item in after_closure},
+            {6458},
+        )
+
     def test_aggregation_uses_net_demand_and_excludes_operational_skus(self) -> None:
         sales = [
             DailySale(
@@ -364,6 +380,153 @@ class ForecastingBaselineTests(unittest.TestCase):
         )
         self.assertIn(
             "control_pronostico_cero", evaluation["evaluacion_horizonte"]
+        )
+        self.assertIn("error_absoluto_total", evaluation["metricas_globales"])
+        self.assertIn("desvio_volumen_total", evaluation["metricas_globales"])
+
+    def test_pilot_reports_seasonal_rubros_and_closed_future_branches(self) -> None:
+        rows = []
+        first_week = date(2026, 5, 4)
+        for branch_id, branch_name, rubro in (
+            (9258, "Membrillar", "Dama Verano"),
+            (6458, "Salguero", "Hombre Invierno"),
+            (8774, "Boedo", "Dama "),
+        ):
+            weeks = 13 if branch_id == 9258 else 20
+            for week in range(weeks):
+                rows.append(
+                    {
+                        "fecha_comprobante": (
+                            first_week + timedelta(weeks=week)
+                        ).isoformat(),
+                        "id_sucursal": branch_id,
+                        "sucursal_nombre": branch_name,
+                        "id_articulo": 10,
+                        "sku": "SKU-10",
+                        "grupo_articulo": "Base",
+                        "color": "Negro",
+                        "talle": "U",
+                        "rubro": rubro,
+                        "subrubro": "Continuo",
+                        "unidades_vendidas": 2,
+                        "patron_muestra": "regular",
+                    }
+                )
+        result = evaluate(
+            rows,
+            windows=(4,),
+            holdout_weeks=2,
+            horizon_weeks=2,
+        )
+        evaluation = result["evaluaciones"][0]
+        self.assertEqual(result["dataset"]["series"], 3)
+        self.assertEqual(result["dataset"]["series_excluidas_cierre"], 1)
+        self.assertEqual(
+            result["dataset"]["sucursales_cerradas_al_pronostico"],
+            [
+                {
+                    "id_sucursal": 9258,
+                    "sucursal_nombre": "Membrillar",
+                    "fecha_cierre": "2026-07-31",
+                }
+            ],
+        )
+        self.assertEqual(
+            {item["id_sucursal"] for item in result["pronosticos_mayores"]},
+            {6458, 8774},
+        )
+        self.assertIn(
+            "Membrillar",
+            {
+                item["sucursal_nombre"]
+                for item in evaluation["metricas_por_sucursal"]
+            },
+        )
+        self.assertEqual(
+            sorted(evaluation["comparacion_rubros_estacionales"]),
+            ["Dama Verano", "Hombre Invierno"],
+        )
+        self.assertIn(
+            "Dama Verano",
+            evaluation["evaluacion_horizonte"][
+                "comparacion_rubros_estacionales"
+            ],
+        )
+        self.assertIn("Dama", evaluation["metricas_por_rubro"])
+
+    def test_pilot_reports_lifecycle_cohorts_and_second_selection(self) -> None:
+        rows = []
+        first_week = date(2026, 1, 5)
+        for article_id, cohort, activity, is_second in (
+            (10, "nuevo_menos_26", "venta_reciente", False),
+            (20, "historia_26_51", "sin_venta_13_mas", False),
+            (30, "maduro_52_mas", "venta_reciente", True),
+        ):
+            for week in range(30):
+                rows.append(
+                    {
+                        "fecha_comprobante": (
+                            first_week + timedelta(weeks=week)
+                        ).isoformat(),
+                        "id_sucursal": 6458,
+                        "sucursal_nombre": "Salguero",
+                        "id_articulo": article_id,
+                        "sku": f"SKU-{article_id}",
+                        "grupo_articulo": "Base",
+                        "color": "Negro",
+                        "talle": "U",
+                        "rubro": "Dama",
+                        "subrubro": "Continuo",
+                        "unidades_vendidas": 2,
+                        "patron_muestra": "regular",
+                        "cohorte_historia": cohort,
+                        "estado_actividad": activity,
+                        "es_segunda_seleccion": is_second,
+                        "primera_semana": first_week.isoformat(),
+                        "ultima_semana_venta": (
+                            first_week + timedelta(weeks=29)
+                        ).isoformat(),
+                        "semanas_calendario": 30,
+                        "semanas_sin_venta": 0,
+                    }
+                )
+        result = evaluate(
+            rows,
+            windows=(8,),
+            holdout_weeks=4,
+            horizon_weeks=2,
+            branch_closure_dates={},
+        )
+        evaluation = result["evaluaciones"][0]
+        self.assertEqual(
+            result["dataset"]["cohortes_historia"],
+            {
+                "historia_26_51": 1,
+                "maduro_52_mas": 1,
+                "nuevo_menos_26": 1,
+            },
+        )
+        self.assertEqual(
+            result["dataset"]["estados_actividad"],
+            {"sin_venta_13_mas": 1, "venta_reciente": 2},
+        )
+        self.assertEqual(result["dataset"]["series_segunda_seleccion"], 1)
+        self.assertEqual(
+            sorted(evaluation["metricas_por_cohorte_historia"]),
+            ["historia_26_51", "maduro_52_mas", "nuevo_menos_26"],
+        )
+        self.assertEqual(
+            evaluation["comparacion_segunda_seleccion"]["modelo"]["series"],
+            1,
+        )
+        self.assertEqual(result["resumen_pronosticos"]["segunda_seleccion"], 1)
+        self.assertEqual(
+            result["resumen_pronosticos"]["por_uso_reposicion"],
+            {
+                "revision_manual_historia_insuficiente": 1,
+                "revision_manual_historia_limitada": 1,
+                "revision_manual_segunda_seleccion": 1,
+            },
         )
 
     def test_csv_round_trip_uses_real_view_columns(self) -> None:

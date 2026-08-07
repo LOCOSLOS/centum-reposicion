@@ -13,6 +13,11 @@ from math import isfinite
 from typing import Iterable, Mapping
 
 
+DEFAULT_BRANCH_CLOSURE_DATES: Mapping[int, date] = {
+    9258: date(2026, 7, 31),  # 20 - Local Membrillar
+}
+
+
 @dataclass(frozen=True, order=True)
 class SeriesKey:
     """Identifica una serie de demanda compatible con la clave de stock."""
@@ -342,12 +347,18 @@ def forecast_all(
     *,
     config: BaselineConfig | None = None,
     censored_by_key: Mapping[SeriesKey, Iterable[date]] | None = None,
+    branch_closure_dates: Mapping[int, date] | None = None,
 ) -> list[ForecastResult]:
     """Genera un pronóstico por serie para la semana de ``as_of``."""
 
     cfg = config or BaselineConfig()
     weekly = aggregate_weekly(sales, config=cfg)
     censored_by_key = censored_by_key or {}
+    closures = (
+        DEFAULT_BRANCH_CLOSURE_DATES
+        if branch_closure_dates is None
+        else branch_closure_dates
+    )
     target = week_start(as_of)
     return [
         forecast_weekly(
@@ -358,7 +369,29 @@ def forecast_all(
             censored_weeks=censored_by_key.get(key, ()),
         )
         for key, series in sorted(weekly.items())
+        if branch_is_open_for_forecast(key.id_sucursal, target, closures)
     ]
+
+
+def branch_is_open_for_forecast(
+    branch_id: int,
+    forecast_week: date,
+    closure_dates: Mapping[int, date] | None = None,
+) -> bool:
+    """Indica si la sucursal operaba al inicio de la semana pronosticada.
+
+    La fecha de cierre es inclusiva: una semana que comienza antes o el mismo
+    día del cierre conserva el pronóstico parcial. Las semanas que comienzan
+    después quedan excluidas sin borrar su historia.
+    """
+
+    closures = (
+        DEFAULT_BRANCH_CLOSURE_DATES
+        if closure_dates is None
+        else closure_dates
+    )
+    closed_on = closures.get(int(branch_id))
+    return closed_on is None or week_start(forecast_week) <= closed_on
 
 
 def backtest_weekly(
