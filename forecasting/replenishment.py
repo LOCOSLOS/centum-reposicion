@@ -313,10 +313,12 @@ def simulate_replenishment(
     transit_records: Iterable[TransitRecord] = (),
     *,
     config: ReplenishmentConfig | None = None,
+    blocked_stock_reasons: Mapping[SeriesKey, str] | None = None,
 ) -> list[ReplenishmentSuggestion]:
     """Calcula sugerencias sin escribir datos ni generar movimientos."""
 
     cfg = config or ReplenishmentConfig()
+    blocked_stock = dict(blocked_stock_reasons or {})
     stock = aggregate_stock(stock_records)
     transit = aggregate_transit(transit_records)
     drafts: list[ReplenishmentSuggestion] = []
@@ -363,6 +365,17 @@ def simulate_replenishment(
                 )
             )
             continue
+        if forecast.key in blocked_stock:
+            drafts.append(
+                _empty_suggestion(
+                    forecast,
+                    cfg,
+                    status="revision_manual",
+                    reason=blocked_stock[forecast.key],
+                    inbound=inbound,
+                )
+            )
+            continue
         if local_stock is None:
             drafts.append(
                 _empty_suggestion(
@@ -393,6 +406,14 @@ def simulate_replenishment(
 
     for article_id, indexes in by_article.items():
         depot_key = SeriesKey(cfg.central_depot_branch_id, article_id)
+        if depot_key in blocked_stock:
+            for index in indexes:
+                result[index] = replace(
+                    result[index],
+                    status="revision_manual",
+                    reason="stock_deposito_invalido",
+                )
+            continue
         depot_stock = stock.get(depot_key)
         if depot_stock is None:
             for index in indexes:

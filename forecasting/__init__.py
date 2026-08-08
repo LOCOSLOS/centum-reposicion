@@ -28,6 +28,16 @@ from .replenishment import (
     normalize_odt_transit,
     simulate_replenishment,
 )
+from .simulation import (
+    InputIssue,
+    SimulationRun,
+    extract_json_rows,
+    load_json_rows,
+    normalize_inventory_rows,
+    run_simulation,
+    write_simulation_csv,
+    write_simulation_summary,
+)
 
 __all__ = [
     "BacktestMetrics",
@@ -54,4 +64,12 @@ __all__ = [
     "aggregate_transit",
     "normalize_odt_transit",
     "simulate_replenishment",
+    "InputIssue",
+    "SimulationRun",
+    "extract_json_rows",
+    "load_json_rows",
+    "normalize_inventory_rows",
+    "run_simulation",
+    "write_simulation_csv",
+    "write_simulation_summary",
 ]
